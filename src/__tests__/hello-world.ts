@@ -1,7 +1,7 @@
-import { hello } from '../index';
+import {Future } from '../index';
 
 describe("Dummy test", () => {
     test("Hello", async () => {
-        expect((await hello)()).toBe("HELL WRLD!");
+        expect((await new Future(() => "HELL WRLD!"))).toBe("HELL WRLD!");
     })
 });
