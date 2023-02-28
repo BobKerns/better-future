@@ -1,7 +1,7 @@
 {
-  "name": "npm-typescript-rollup-template",
+  "name": "bertter-future",
   "version": "0.1.0",
-  "description": "Template project for typescript and rollup",
+  "description": "Better defered computation",
   "main": "lib/cjs/index.js",
   "module": "lib/esm/index.js",
   "browser": "lib/umd/index.js",
@@ -32,7 +32,7 @@
   "bin": {},
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/BobKerns/npm-typescript-rollup-template.git"
+    "url": "git+https://github.com/BobKerns/better-future.git"
   },
   "keywords": [
     "template",
@@ -43,9 +43,9 @@
   "author": "Bob Kerns",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/BobKerns/npm-typescript-rollup-template/issues"
+    "url": "https://github.com/BobKerns/better-future/issues"
   },
-  "homepage": "https://github.com/BobKerns/npm-typescript-rollup-template#readme",
+  "homepage": "https://github.com/BobKerns/better-future#readme",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^24.0.1",
     "@rollup/plugin-node-resolve": "^15.0.1",

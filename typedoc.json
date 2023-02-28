@@ -2,6 +2,7 @@
     "exclude": [
         "**/__tests__/**"
     ],
-  "readme": "src/README.md",
-  "includes": "./"
+    "name": "Better Future",
+    "readme": "src/README.md",
+    "includes": "./"
 }

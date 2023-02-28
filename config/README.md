@@ -51,4 +51,5 @@ Nothing we do here requires a particular ECMAScript version, but because ES2018 
 This is the typescript configuration for the files in the `/config` directory.
 
 ## module-typings.d.ts
+
 This file holds type declarations for two rollup plugins that do not come with type definitions. This file should only be used for modules that are used in this directory. Similar files can be placed in [../devtools](../devtools/README.md) or . [./src](../src/README.md) as needed.

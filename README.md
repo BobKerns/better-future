@@ -1,109 +1,429 @@
-# Project Template npm-typescript-rollup-template
+# better-future: Better handling of deferred computation compatible with Promises
 
-This lays out a common project structure, and is hello-world buildable out of the box.
-It focuses on providing an easy-to-understand starting point for integrating
-with typescript and the [rollup](https://www.rollupjs.org) packager.
+## API
 
-Rather than trying to set up to handle every possible variation, the intent of this
-template is to be opinionated about how a project should be organized—and then do that well.
+### class `Future`
 
-I think the narrow focus serves the user better. Even if you chose a different path,
-it makes it easier to understand and to know how you wish to deviate.
+A `Future` is just like a `Promise`, except the computation does not start until and
+unless `.then`() is called. It is a _thenable_, and thus can be used anywhere a
+`Promise` can be used.
 
-# Features
-* Simple starting point.
-* Full typescript integration
-  * Generated Javascript files and source are placed in lib/ for easy cleanup and less clutter.
-  * Javascript configuration files redirect to typescript ones in [./config](config/README.md) .
-  * Typescript build tools are fully supported in-project.
-* Great experience out-of-the-box.
-  * Extensive descriptions of project structure
-  * Descriptions of plugins and options.
-  * A buildable, testable environment out-of-the-box
-  * Clear path to adding additional features
-* Updates and optional features can be flexibliy merged in via git merges.
-  * Regular update scripts break when you make customizations.
-  * Git merges, at worst, give merge conflicts.
-  * Merge conflicts lay out what change was being attempted and why there was a conflict.
-  * Because you have the context for why your change conflicts, it's easier to resolve.
-  * The usual fallback for script-based template configuration is to manually figure out and make the changes.
- * [Continuous Integration Integration](#continuous-integration-integration)
+This allows for a form of lazy evaluation, where computations are deferred until needed,
+or not performed at all when they may not be needed.
 
-# Content
+A `Future` can be in one of these states:
 
-## Primary organization
+* _Pending_: The initial state. The computation has not yet been started.
+* _Started_: The computation has been started, but has neither returned nor
+  thrown an exception. This corresponds to the _Pending_ state in a `Promise`.
+* _Fulfilled_ The computation has returned a value.
+* _Rejected_: The computation has thrown an exception or returned a rejected
+  `Promise`.
+* _Cancelled_: After being cancelled, the `Future` will be in this state until
+  all `onCancel` handlers have been called, after which it transitions to
+  _Rejected_. `Future`.`state` will remain at `”CANCELLED”` to denote why it
+  was rejected.
+* _Timeout_: If a `Future` times out (see `Future`.`timeout`()), it will be in
+  this state until all `onTimeout` handlers have been called, after which it
+  transitions to _Rejected_. `Future`.`state` will remain at `”TIMEOUT”` to
+  denote why it was rejected.
 
-The important files are the outputs included in the published module, and the sources that
-produce them. The rest are supporting mechanisms.
+  The enueration in `Future`.`state` will be all uppercase.
 
-## package.json
+```mermaid
+stateDiagram-v2
+    direction LR
 
-This describes the package, it's role in the world,
+    [*] --> Pending
+    Pending --> Started : .then()
+    Pending --> Started : .start()
+    Started --> state=FULFILLED : computation returns
+    state=FULFILLED --> Fulfilled
+    Started --> state=REJECTED : computation throws
+    state=REJECTED --> Rejected
+    Pending --> Cancelled : cancel
+    Started --> Cancelled : cancel
+    Cancelled --> Rejected
 
-You should edit package.json, with special attention to these fields:
-* `name:`
-* `version:`
-* `description:`
-* `repository.url:`
-* `keywords:`
-* `license:`
-* `bugs.url:`
-* `homepage:`
+    state Pending {
+      [*] --> state=PENDING
+      state=PENDING --> [*]
+    }
 
-## Continuous Integration Integration
-Three free Continuous Integration workflows are configured out of the box.  Remove any you
-you do not need, or disable them in the relevant service.
+    state Started {
+      [*] --> state=STARTED
+      state=STARTED --> NotifyStarted
+      NotifyStarted --> [*]
+      NotifyStarted : Notify onStart
+    }
+    state Fulfilled {
+      [*] --> NotifyFulfilled
+      NotifyFulfilled --> [*]
+      NotifyFulfilled : Notify onFullfilled
+    }
 
-You probably do not need multiple builds on multiple services, but this will let you see each and make a choice. For simple things at least, the features are very similar. It is very useful to be able to build and test on multiple environments in parallel, something each of the services provides.
+    state Rejected {
+      [*] --> NotifyRejected
+      NotifyRejected --> [*]
+      NotifyRejected : Notify onRejected
+    }
 
-* [Circle CI](https://circleci.com)
-* [Travis CI](https://travis-ci.com)
-* [GitHub Workflows (CI)](https://github.com)
+    state Cancelled {
+      [*] --> state=CANCELLED
+      state=CANCELLED --> NotifyCancelled
+      NotifyCancelled --> [*]
+      NotifyCancelled: Notif onCancelled
+    }
+```
 
-## /lib/
+`.catch`(), `.finally`(), and `.when`() do not result in state changes.
 
-This holds the built Javascript files. By default, three versions are built, for compatibility with various module systems. Ultimately, the world is moving toward the ECMAScript module format, but in the meantime,
-### /lib/esm
-This holds files in the ECMAScript module format.
+### `new Future`(_computation_)
 
-### /lib/cjs
-This uses the CommonJS used traditionally by node.
+Creates a `Future` that will begin running _computation_ when `.then`() is called.
 
-### /lib/umd
-This holds files in the UMD format, a flat file loadable by web browsers.
+_computation_: () => `any`
 
-## [/assets](/assets/README.md)
-Data files to be used in documentation or runtime in the application.
+On creation, the state will be _Pending_.
 
-## [/config](/config/README.md)
-This holds files used to globally configure the project. These are often redirected from the project root, to place them in one place, and to enable the use of typescript rather than javascript.
+### _future_.`then`(_onFulfilled_, _onRejected_)
 
-## [/devtools](/devtools/README.md)
-This holds code used to to build the main project. It is built before the main project is configured.
+Start the computation running, if it is not already running. When the computation
+terminates, _onFulfilled_ or _onRejected_ will be called with the value or error
+as with a `Promise`.
 
-It is initially empty.
+The state will transition to _Started_ if it was _Pending_.
 
-## /docs
-A generated directory with documentation. Some content may be installed from [/assets](/assets/README.md)
+### _future_.`catch`(_onRejected_)
 
-### /docs/api
-The generated API documentation via [typedoc](https://typedoc.org)
+If the state is _Fulfilled_, _onRejected_ is called immediately with the rejection value as for `Promise`.`catch`().
 
-## /node_modules
-This directory is created and managed by [npm](https://npmjs.com), via the `npm install` command.
+If the state is _Fulfilled_, _onRejected_ will not be called.
 
-## [/src](/src/README.md)
-This hierarchy contains the project's source code and related tests.
+If the state is _Pending_ or _Started_, and the state becomes _Fulfilled_, _onRejected_ will be called at that time.
 
-# Top level files
-* .editorconfig
-* .gitignore
-* .npmignore — hides build infrastructure, sources, etc. from the final npm package.
-* travis.yml -- configuration for building automatically on [Travis](https://travis-ci.com/)
-* .circle-ci/ -- configuration for building automatically on [Circle CI](https://circleci.com)
-*  .github/workflows -- configuration for building automatically on GitHub Workflows
-* rollup.config.js -- redirects to [/config/rollup.config.ts](/config/rollup.config.ts)
-*
+### _future_.`finally`(_handler_)
 
-[Continuous Integration Integration]: #continuous-integration-integration
+If the state is _Fulfilled_ or _Rejected_, _handler_ will be called. If the state
+later transitions to _Fulfilled_ or _Rejected_, the handler will be called at that
+time.
 
+### _future_.`when`(_onFulfilled_, _onRejected_)
+
+Like _future_.`then`(), but does not start the computation.
+
+This is useful when setting up a computation and being notified if/when it completes.
+
+### _future_.`start`()
+
+Starts the computation but does not add any handler.
+
+  ```javascript
+future.start().when(handler)
+```
+
+is equivalent to
+
+```javascript
+future.then(handler)
+```
+
+### _future_.`onStart`(_handler_)
+
+Regesters a _handler_ that that will be notified that the computation has started.
+The _handler_ will receive the time the computation started. Handlers can be added
+at any time, including long after the `Future` is resolved.
+
+### _future_.`onTimeout`(_handler_)
+
+Registers a _handler_ that will be notified if the `Future` times out. This can
+only happen if the future is creaed with `Future`.`timeoutFromNow`() or
+`Future`.`timeout`, or if the computation throws an instance of `Timeout`.
+
+### _future_.`cancel`(_msg_=`‘Cancelled’`)
+
+Cancel a pending or executing `Future`. Does nothing if it has completed.
+
+Canceling a `Future` while the computation is running depends on the computation to
+check _future_.`isCancelled`() to actually halt execution, but the `Future`
+will be cancelled regardless.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+
+    [*] --> Pending
+    Pending --> Started : .then()
+    Pending --> Started : .start()
+    Pending --> Cancelled : cancel
+    Started --> Cancelled : cancel
+    Cancelled --> Rejected
+
+    state Pending {
+      [*] --> state=PENDING
+      state=PENDING --> [*]
+    }
+
+    state Started {
+      [*] --> state=STARTED
+      state=STARTED --> NotifyStarted
+      NotifyStarted --> [*]
+      NotifyStarted : Notify onStart
+    }
+    state Rejected {
+      [*] --> NotifyRejected
+      NotifyRejected --> [*]
+      NotifyRejected : Notify onRejected
+    }
+
+    state Cancelled {
+      [*] --> state=CANCELLED
+      state=CANCELLED --> NotifyCancelled
+      NotifyCancelled --> [*]
+      NotifyCancelled: Notif onCancelled
+    }
+```
+
+### _future_.`isCancelled`()
+
+Returns `true` if this `Future` has been cancelled, or a `Cancelled` exception
+is thrown by the user code.
+
+### _future_.`onCancel`(_handler_)
+
+Registers _handler_ to be called when the `Future` is cancelled. _handler_ will receive a `Cancelled`
+error object, from which start and end times may be obtained.
+
+### _future_.`check`(_continuation_)
+
+Checks if the `Future` has been cancelled or timed out. Throws the corresponding
+`Cancelled` or `Timeout` exception if so. Otherwise, if _continuation_ is called,
+it will be called with the `Future` as an argument.
+
+It is an error to call this from anywhere but an ongoing `Future` computation.
+
+### _future_.`state`
+
+Returns one of:
+
+* `”PENDING”`
+* `”STARTED”`
+* `TIMEOUT`
+* `CANCELLED`
+* `”FULFILLED”`
+* `”REJECTED”`.
+
+### `Future`.`delay` (_ms_) (_computation_)
+
+Returns a function that when applied to a computation, delays the computation
+until a minimum of _ms_ milliseconds have passed.
+
+To immediately start the delay countdown:
+
+```javascript
+Future.delay(myComputation).start()
+```
+
+```mermaid
+stateDiagram-v2
+    direction LR
+
+    [*] --> Pending
+    Pending --> Started : .then()
+    Pending --> Started : .start()
+    Started --> state=FULFILLED : computation returns
+    state=FULFILLED --> Fulfilled
+    Started --> state=REJECTED : computation throws
+    state=REJECTED --> Rejected
+    Pending --> Cancelled : cancel
+    Started --> Cancelled : cancel
+    Cancelled --> Rejected
+
+    state Pending {
+      [*] --> state=PENDING
+      state=PENDING --> Delay
+      Delay --> [*]
+    }
+
+    state Started {
+      [*] --> state=STARTED
+      state=STARTED --> NotifyStarted
+      NotifyStarted --> [*]
+      NotifyStarted : Notify onStart
+    }
+
+    state Fulfilled {
+      [*] --> NotifyFulfilled
+      NotifyFulfilled --> [*]
+      NotifyFulfilled : Notify onFullfilled handlers
+    }
+
+    state Rejected {
+      [*] --> NotifyRejected
+      NotifyRejected --> [*]
+      NotifyRejected : Notify onRejected handlers
+    }
+
+    state Cancelled {
+      [*] --> state=CANCELLED
+      state=CANCELLED --> NotifyCancelled
+      NotifyCancelled --> [*]
+      NotifyCancelled: Notif onCancelled
+    }
+```
+
+### `Future`.`timeout` (_ms_) (_computation_)
+
+Returns a function that when applied to a computation, will time out that computation _ms_ milliseconds after it is started.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> Pending
+    Pending --> Started : .then()
+    Pending --> Started : .start()
+    Started --> state=FULFILLED : computation returns
+    state=FULFILLED --> Fulfilled
+    Started --> STATE=REJECTED : computation throws
+    STATE=REJECTED --> Rejected
+    Started --> Timeout : timeout
+    Timeout --> Rejected
+    Pending --> Cancelled : cancel
+    Started --> Cancelled : cancel
+    Cancelled --> Rejected
+
+    state Pending {
+      [*] --> state=PENDING
+      state=PENDING --> [*]
+    }
+
+    state Started {
+      [*] --> state=STARTED
+      state=STARTED --> NotifyStarted
+      NotifyStarted --> Timer
+      Timer --> [*]
+      Timer : Start Timer
+      NotifyStarted : Notify onStart
+    }
+
+    state Fulfilled {
+      [*] --> NotifyFulfilled
+      NotifyFulfilled --> [*]
+      NotifyFulfilled : Notify onFullfilled
+    }
+
+    state Rejected {
+      [*] --> NotifyRejected
+      NotifyRejected --> [*]
+      NotifyRejected : Notify onRejected
+    }
+
+    state Timeout {
+      [*] --> state=TIMEOUT
+      state=TIMEOUT --> NotifyTimeout
+      NotifyTimeout --> [*]
+      NotifyTimeout : Notify onTimeout
+    }
+
+    state Cancelled {
+      [*] --> state=CANCELLED
+      state=CANCELLED --> NotifyCancelled
+      NotifyCancelled --> [*]
+      NotifyCancelled: Notif onCancelled
+    }
+```
+
+### `Future`.`timeoutFromNow` (_ms_) (_computation_)
+
+Returns a function that when applied to a computation, will time out that computation
+_ms_ milliseconds from when when it enters the _Pending_ state.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> Pending
+    Pending --> Started : .then()
+    Pending --> Started : .start()
+    Started --> state=FULFILLED : computation returns
+    state=FULFILLED --> Fulfilled
+    Started --> state=REJECTED : computation throws
+    state=REJECTED --> Rejected
+    Started --> Timeout : timeout
+
+    Pending --> Timeout : timeout
+    Timeout --> Rejected
+    Pending --> Cancelled : cancel
+    Started --> Cancelled : cancel
+    Cancelled --> Rejected
+
+    state Pending {
+      [*] --> state=PENDING
+      state=PENDING --> Timer
+      Timer --> [*]
+      Timer : Start Timer
+    }
+
+    state Started {
+      [*] --> state=STARTED
+      state=STARTED --> NotifyStarted
+      NotifyStarted --> [*]
+      NotifyStarted : Notify onStart
+    }
+
+    state Fulfilled {
+      [*] --> NotifyFulfilled
+      NotifyFulfilled --> [*]
+      NotifyFulfilled : Notify onFullfilled
+    }
+
+    state Rejected {
+      [*] --> NotifyRejected
+      NotifyRejected --> [*]
+      NotifyRejected : Notify onRejected
+    }
+
+    state Timeout {
+      [*] --> NotifyTimeout
+      NotifyTimeout --> [*]
+      NotifyTimeout : Notify onTimeout
+    }
+
+    state Cancelled {
+      [*] --> state=CANCELLED
+      state=CANCELLED --> NotifyCancelled
+      NotifyCancelled --> [*]
+      NotifyCancelled: Notif onCancelled
+    }
+```
+
+### class `FutureException`
+
+Abstract base class for exceptions relating to`Future`s.
+
+Provides:
+
+* _ex_.`future`: The `Future` for which this was thrown.
+* _ex_.`start`: The millisecond time when the `Future` was started (or created).
+* _ex_.`end`: The milllisecond time when the exception occured.
+
+### class Timeout
+
+When a `Future` is created with a timeout, it will fail with a `Timeout`
+exceeption.
+
+Inherits:
+
+* _ex_.`future`: The Future for which this was thrown.
+* _ex_.`start`: The millisecond time when the Future was started (or created).
+* _ex_.`end`: The milllisecond time when the exception occured.
+
+### class Cancelled
+
+When a `Future` is cancelled, it will fail with a `Cancelled`
+exceeption.
+
+Inherits:
+
+* _ex_.`future`: The `Future` for which this was thrown.
+* _ex_.`start`: The millisecond time when the Future was started (or created).
+* _ex_.`end`: The milllisecond time when the exception
