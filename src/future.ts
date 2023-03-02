@@ -4,9 +4,11 @@
  */
 
 /**
- * 
+ *
  */
 type Computation<T> = (computation?: Future<T>) => T|PromiseLike<T>;
+
+type Continuation<T, R> = (computation?: Future<T>) => R | PromiseLike<R>;
 
 type Handler<T> = (a: T | PromiseLike<T>) => void;
 
@@ -166,7 +168,7 @@ export class Future<T> {
     isCancelled() {
         return !(this.#s.state === State.PENDING || this.#s.state === State.STARTED);
     }
-    check(continuation: Computation<T>) {
+    check<R>(continuation: Continuation<T,R>) {
         switch (this.#s.state) {
             case "PENDING":
                 throw new Error(
