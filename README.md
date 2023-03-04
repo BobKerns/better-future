@@ -274,7 +274,9 @@ stateDiagram-v2
 
 ### `Future`.`timeout` (_ms_) (_computation_)
 
-Returns a function that when applied to a computation, will time out that computation _ms_ milliseconds after it is started.
+Returns a function that when applied to a computation, will return a
+`Future` that will time out that computation _ms_ milliseconds after
+it is started.
 
 ```mermaid
 stateDiagram-v2
@@ -335,7 +337,8 @@ stateDiagram-v2
 
 ### `Future`.`timeoutFromNow` (_ms_) (_computation_)
 
-Returns a function that when applied to a computation, will time out that computation
+Returns a function that when applied to a computation, will return a
+`Future` that will time out that computation
 _ms_ milliseconds from when when it enters the _Pending_ state.
 
 ```mermaid
@@ -395,6 +398,24 @@ stateDiagram-v2
       NotifyCancelled: Notif onCancelled
     }
 ```
+
+### `Future`.`resolve`(_value_)
+
+Create a `Future` that is pre-resolved to the specified value. Useful for testing
+and for places that expect a full `Future` but you need to supply a resolved value.
+
+### `Future`.`reject`(_error_)
+
+Create a `Future` that is pre-rejected with the specified value. Useful fo resting
+and for places that expect a full `Future` but you need to supply a rejected value.
+
+### `Future`.`cancelled`(_msg_ = `Cancelled`)
+
+Return a pre-cancelled `Future`. Useful in testing.
+
+### `Future`.`never`()
+
+Return a `Future` that never arrives. Useful for testing and as a placeholder.
 
 ### class `FutureException`
 

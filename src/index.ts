@@ -10,4 +10,9 @@
  * @module Index
  */
 
-export {Future, Timeout, Cancelled, FutureException} from "./future";
+export {Future, Timeout, Cancelled, FutureException, Throw, State} from "./future";
+
+export type {
+    Computation, Continuation, OnFinally, OnFulfilled, OnRejected, OnStart, FailCallback,
+    UnixTime, Millis
+} from './future'
