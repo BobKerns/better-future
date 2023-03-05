@@ -13,7 +13,11 @@ describe("Basic", () => {
                 Future.resolve,
                 Future.reject,
                 Future.cancelled,
-                Future.never
+                Future.never,
+                Future.all,
+                Future.allSettled,
+                Future.race,
+                Future.any
             ].map(f => ({name: f == Future ? '' : `.${f.name}`, f})))(
                 "Future$name is a function",
                 ({f}) => expect(f).toBeInstanceOf(Function)
@@ -54,7 +58,7 @@ describe("Basic", () => {
                 })())
                 .resolves.toBe('FULFILLED');
             });
-            test("Fail", () => { 
+            test("Fail", () => {
                 const fFail = new Future(() => { throw new Error('Fail') });
                 expect ((async() => {
                     try {

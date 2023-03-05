@@ -404,18 +404,164 @@ stateDiagram-v2
 Create a `Future` that is pre-resolved to the specified value. Useful for testing
 and for places that expect a full `Future` but you need to supply a resolved value.
 
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> Pending
+    Pending --> Started : .then()
+    Pending --> Started : .start()
+    Started --> state=FULFILLED : computation returns
+    state=FULFILLED --> Fulfilled
+
+    state Pending {
+      [*] --> state=PENDING
+      state=PENDING --> Timer
+      Timer --> [*]
+      Timer : Start Timer
+    }
+
+    state Started {
+      [*] --> state=STARTED
+      state=STARTED --> NotifyStarted
+      NotifyStarted --> [*]
+      NotifyStarted : Notify onStart
+    }
+
+    state Fulfilled {
+      [*] --> NotifyFulfilled
+      NotifyFulfilled --> [*]
+      NotifyFulfilled : Notify onFullfilled
+    }
+```
+
 ### `Future`.`reject`(_error_)
 
 Create a `Future` that is pre-rejected with the specified value. Useful fo resting
 and for places that expect a full `Future` but you need to supply a rejected value.
 
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> Pending
+    Pending --> Started : immediate
+    Started --> state=REJECTED : computation throws
+    state=REJECTED --> Rejected
+
+    state Pending {
+      [*] --> state=PENDING
+      state=PENDING --> Timer
+      Timer --> [*]
+      Timer : Start Timer
+    }
+
+    state Started {
+      [*] --> state=STARTED
+      state=STARTED --> NotifyStarted
+      NotifyStarted --> [*]
+      NotifyStarted : Notify onStart
+    }
+
+    state Rejected {
+      [*] --> NotifyRejected
+      NotifyRejected --> [*]
+      NotifyRejected : Notify onRejected
+    }
+```
+
 ### `Future`.`cancelled`(_msg_ = `Cancelled`)
 
 Return a pre-cancelled `Future`. Useful in testing.
 
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> Pending
+    Pending --> Cancelled : immediate
+    Cancelled --> Rejected
+
+    state Pending {
+      [*] --> state=PENDING
+      state=PENDING --> Timer
+      Timer --> [*]
+      Timer : Start Timer
+    }
+
+    state Rejected {
+      [*] --> NotifyRejected
+      NotifyRejected --> [*]
+      NotifyRejected : Notify onRejected
+    }
+
+    state Cancelled {
+      [*] --> state=CANCELLED
+      state=CANCELLED --> NotifyCancelled
+      NotifyCancelled --> [*]
+      NotifyCancelled: Notif onCancelled
+    }
+```
+
 ### `Future`.`never`()
 
 Return a `Future` that never arrives. Useful for testing and as a placeholder.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> Pending
+    Pending --> Started : .then()
+    Pending --> Started : .start()
+
+    state Pending {
+      [*] --> state=PENDING
+      state=PENDING --> [*]
+    }
+
+    state Started {
+      [*] --> state=STARTED
+      state=STARTED --> NotifyStarted
+      NotifyStarted --> Timer
+      Timer --> [*]
+      Timer : Start Timer
+      NotifyStarted : Notify onStart
+    }
+```
+
+### `Future`.`race`(_promises_)
+
+Returns a `Future` that, when started, will resolve with the first of the supplied iterable
+of `PromiseLike` arguments to complete.
+
+Unlike `Promise`.`race`(_promises_), any supplied `Future` instances will not be started
+until requested with `.then()` or `.start()`.
+
+### `Future`.`all`(_promises_)
+
+Returns a `Future` that, when started, will resolve when all of the supplied iterable of
+`PromiseLike` arguments are fulfilled, or reject when the first rejects. If all are
+fullfilled, the result is fulfilled with an array of the results of the arguments.
+
+Unlike `Promise`.`all`(_promises_), any supplied `Future` instances will not be started
+until requested with `.then()` or `.start()`.
+
+### `Future`.`allSettled`(_promises_)
+
+Returns a `Future` that, when started, will resolve when all of thesupplied iterable of
+`PromiseLike` arguments are resolved. It will be fulfilled with an array of
+`PromiseSettledResult` objects, one of:
+
+```javascript
+{
+    type: 'fulfilled',
+    value: T
+}
+```
+
+```javascript
+{
+    type: 'rejected',
+    reason: any
+}
+```
 
 ### class `FutureException`
 

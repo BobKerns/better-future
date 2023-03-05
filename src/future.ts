@@ -74,11 +74,11 @@ class FutureState<T> {
     // The fulfilled handler for the OnCancel promise
     // Called when the computation is cancelled.
     onCancel?: FailCallback<Cancelled<T>> | null;
-    // 
+    //
     startTime?: UnixTime;
     // Enables cancellation and timeout.
     reject?: FailCallback<Error>;
-    // 
+    //
     exception?: Error;
     // The current state of the Future
     state: State = State.PENDING;
@@ -139,8 +139,8 @@ export class Future<T> {
      * then received by the caller of the {@link Future} instance via the {@link #then}
      * or {@link #catch} methods. The computation may also return a `Promise`,
      * whose value will be used in the same way.
-     * 
-     * @param computation 
+     *
+     * @param computation
      */
     constructor(computation: Computation<T>)  {
         if (computation instanceof Future) {
@@ -151,7 +151,7 @@ export class Future<T> {
             this.#s = new FutureState();
             this.#promise = new Promise<T|undefined>((resolve, reject) => {
                 // Our internal computation wraps the supplied one to handle
-                // 
+                //
                 this.#s.computation = (): T | PromiseLike<T|undefined> | undefined => {
                     this.#s.computation = null;
                     this.#s.state = State.STARTED;
@@ -185,13 +185,13 @@ export class Future<T> {
 
     /**
      * Arrive at a final state.
-     * 
+     *
      * @param state The new state
      * @param handler The handler to invoke
      * @param v The value to provide
      * @param e The exception to record
      * @returns the value.
-     * 
+     *
      * @hidden
      */
     #resolved<T>(state: State, handler: Handler<T> | null | undefined, v: T, e: Error | null) {
@@ -213,9 +213,9 @@ export class Future<T> {
      *
      * If either handler throws an exception, the new {@link Future} will be
      * rejected with that exception.
-     * 
-     * @param onFulfilled 
-     * @param onRejected 
+     *
+     * @param onFulfilled
+     * @param onRejected
      * @returns the new {@link Future} instance.
      */
     then<R,E>(onFulfilled: OnFulfilled<T,R>, onRejected: OnRejected<E>): Future<R|E> {
@@ -229,15 +229,15 @@ export class Future<T> {
      * Handles rejected {@link Future} instances. This does not start the computation,
      * since in most cases, we are interested in the fulfillment of the {@link Future},
      * not its rejection.
-     * 
+     *
      * Often, {@link #catch} handlers are set up separately from the {@link #then}
      * handlers that consume the result.
-     * 
+     *
      * If you need the computation started, use {@link #start}, use {@link #catch}
      * together with {@link #then}, or use the two-argument form of the {@link #then}method.
-     * 
+     *
      * See {@link #then} for more details.
-     * 
+     *
      * @param onRejected the handler to be called if the computation throws an exception.
      * @returns a new {@link Future} instance.
      */
@@ -249,7 +249,7 @@ export class Future<T> {
 
     /**
      * Call the handler when the computation completes, regardless of success.
-     * 
+     *
      * @param onFinally Handler to be called when the computation is complete.
      * @returns a new {@link Future} instance.
      */
@@ -261,10 +261,10 @@ export class Future<T> {
 
     /**
      * Identical to {@link #then}, but does not start the computation.
-     * 
-     * @param onFulfilled 
-     * @param onRejected 
-     * @returns 
+     *
+     * @param onFulfilled
+     * @param onRejected
+     * @returns
      */
     when<R>(onFulfilled: OnFulfilled<T, R>, onRejected: OnRejected<R>) {
         const next = new Future<R>(this as any as Computation<R>);
@@ -274,7 +274,7 @@ export class Future<T> {
 
     /**
      * Register a handler to be called when the computation starts.
-     * @param handler 
+     * @param handler
      * @returns this {@link Future} instance.
      */
     onStart(handler: OnStart) {
@@ -284,7 +284,7 @@ export class Future<T> {
 
     /**
      * Start the computation, if not already started.
-     * 
+     *
      * @returns this {@link Future} instance.
      */
     start() {
@@ -296,13 +296,13 @@ export class Future<T> {
      * Cancel a pending or started {@link Future} computation, by setting the {@link #state}
      * to {@link #CANCELLED}, and calling the {@link #onCancel} handlers, if any.
      * The {@link Future} is rejected with a {@link Cancelled} exception.
-     * 
+     *
      * Cancellation-aware computations should check the {@link #isCancelled} proprety,
      * or use the {@link #check} method, to terminate early.
-     * 
+     *
      * If the state is not {@link #PENDING} or {@link #STARTED}, this method
      * does nothing.
-     * 
+     *
      * @param msg A custom message to be included in the {@link Cancelled} exception.
      * @returns this {@link Future} instance.
      */
@@ -319,7 +319,7 @@ export class Future<T> {
 
     /**
      * Register a _handler_ to call when the {@link Future} is cancelled.
-     * 
+     *
      * @param handler
      * @returns this {@link Future} instance.
      */
@@ -330,11 +330,11 @@ export class Future<T> {
 
     /**
      * Register a _handler_ to call when the {@link Future} times out.
-     * 
+     *
      * Futures constructed with {@link #timeout} or {@link #timeoutAfter}
      * will be rejected with a {@link Timeout} exception. This handler
      * is called only on actual timeout.
-     * 
+     *
      * @param handler
      */
     onTimeout(handler: FailCallback<Timeout<T>>) {
@@ -352,7 +352,7 @@ export class Future<T> {
 
     /**
      * An alternative for cancellation-aware computations to using {@link #isCancelled}.
-     * 
+     *
      * The supplied _continuation_ is called only if the {@link Future} is in the
      * {@link #STARTED} state. Otherwise, an exception is thrown, so the calling
      * computation can be terminated.
@@ -372,7 +372,7 @@ export class Future<T> {
                 throw new Error("Computation has already completed.");
         }
     }
-                         
+
     /**
      * Create a {@link Future} that will not start until the specified delay
      * after the computation is requested.
@@ -389,7 +389,7 @@ export class Future<T> {
     /**
      * Create a {@link Future} that will time out _timeout_ milliseconds after
      * the computation is started.
-     * 
+     *
      * @param timeout the timeout in milliseconds.
      * @param msg An optional message to be used in the {@link Timeout} exception.
      * @returns the timed {@link Future}
@@ -415,7 +415,7 @@ export class Future<T> {
     /**
      * Create a {@link Future} that will time out _timeout_ milliseconds after creation,
      * regardless of when or if the result is requested.
-     * 
+     *
      * @param timeout the timeout in milliseconds.
      * @param msg  An optional message to be used in the {@link Timeout} exception.
      * @returns  the timed {@link Future}.
@@ -441,23 +441,23 @@ export class Future<T> {
 
     /**
      * Construct a pre-resolved {@link Future}.
-     * 
+     *
      * This is useful in testing or when a resolved promise is needed that
      * also is expected to be a {@link Future}.
-     * 
+     *
      * @param v A value or a Promise-like container for a value.
      * @returns a {@link Future} pre-resolved to that value.
      */
-    static resolve<T>(v: T) : Future<T> { 
+    static resolve<T>(v: T) : Future<T> {
         return new Future<T>(() => Promise.resolve(v)).start();
     }
 
     /**
      * Construct a pre-rejected {@link Future}.
-     * 
+     *
      * This is useful in testing or when a resolved promise is needed that
      * also is expected to be a {@link Future}.
-     * 
+     *
      * @param e An exception or a Promise-like container for an exception.
      * @returns a {@link Future} pre-rejected with that exception.
      */
@@ -467,12 +467,12 @@ export class Future<T> {
 
     /**
      * Create a pre-cancelled {@link Future}.
-     * 
+     *
      * This is useful in testing or when a resolved promise is needed that
      * also is expected to be a {@link Future}.
-     * 
+     *
      * @param c A {@link Cancelled} exception to be used, or a msg to be used to create one.
-     * @returns 
+     * @returns
      */
     static cancelled<T>(c: Cancelled<T> | string = 'Cancelled'): Future<T> {
         return new Future<T>(() => Future.never<T>()).cancel(c ?? 'Cancelled');
@@ -481,14 +481,66 @@ export class Future<T> {
     /**
      * Create a {@link Future} that will never complete. This is useful for tests, or
      * as a placeholder that can be subsequently cancelled.
-     * 
+     *
      * It can also be used with {@link #timeout} or {@link #timeoutFromNow}
      * to create a fixed timeout.
-     * 
+     *
      * @returns a {@link Future} that will never complete.
      */
     static never<R>(): Future<R> {
         return new Future<R>(() => new Promise(() => { }));
+    }
+
+    /**
+     * Create a {@link Future} that will complete when any one of the specified
+     * `Thenables` has completed.  The first one to complete will be the result.
+     *
+     * The race begins when {@link #then} or {@link #start} is called.
+     * Unlike `Promise.race`(), {@link Future} computations are not started when this
+     * is called, but rather, when the result is requested.
+     */
+    static race<T>(thenables: Iterable<PromiseLike<T>>): Future<T> {
+        return new Future<T>(() => Promise.race(thenables));
+    }
+
+    /**
+     * Create a {@link Future} that will complete when all of the specified
+     * `Thenables` have completed.  The result will be an array of the results
+     * of the `Thenables` if fulfilled, or the first rejection reason.
+     *
+     * Unlike `Promise`.`all`(), {@link Future} computations are not started when this
+     * is called, but rather, when te result is requested.
+     */
+    static all<T>(thenables: Iterable<PromiseLike<T>>): Future<T[]> {
+        return new Future<T[]>(() => Promise.all(thenables));
+    }
+
+    /**
+     * Create a {@link Future} that will complete when all of the specified
+     * `Thenables` have completed.  The result will be an array of result
+     * specifiers with the results of the `Thenables`.
+     *
+     * The return value is an array of outcome objects with the following properties:
+     * - `status`: "fulfilled" or "rejected"
+     * - `value`: the value if fulfilled, or the rejection reason if rejected
+     * - `reason`: the rejection reason if rejected, or undefined if fulfilled
+     *
+     * Unlike `Promise`.`allSettled`(), {@link Future} computations are not started when this
+     * is called, but rather, when teh result is requested.
+     */
+    static allSettled<T>(thenables: Iterable<PromiseLike<T>>): Future<PromiseSettledResult<T>[]> {
+        return new Future<PromiseSettledResult<T>[]>(() => Promise.allSettled(thenables));
+    }
+
+    /**
+     * Create a {@link Future} that will complete when any one of the specified `Thenables`
+     * settle(s).  The result will be the result of the first `Thenable` to settle.
+     *
+     * Equivalent to `Promise.any`() exceptthe computations are not started when this
+     * is called, but rather, when the result is requested.
+     */
+    static any<T>(thenables: Iterable<PromiseLike<T>>): Future<T> {
+        return new Future<T>(() => Promise.any(thenables));
     }
 }
 
