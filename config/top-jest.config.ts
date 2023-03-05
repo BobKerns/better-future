@@ -16,5 +16,5 @@ export default {
         "!/src/**/{node_modules,lib,build,docs,tmp}/**"
     ],
     rootDir: "src",
-    "maxConcurrency": 10
-};
+    "maxWorkers": 8
+}
