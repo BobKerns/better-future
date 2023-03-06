@@ -46,7 +46,7 @@
     "@types/istanbul-reports": "^3.0.1",
     "@types/jest": "^29.4.0",
     "@types/mime": "^3.0.1",
-    "esbuild": "0.17.10", 
+    "esbuild": "0.17.10",
     "jest": "^29.4.3",
     "jest-mock-proxy": "^3.1.2",
     "mermaid": "^10.0.2",
@@ -54,8 +54,10 @@
     "ts-jest": "^29.0.5",
     "ts-node-dev": "^2.0.0",
     "typedoc": "^0.23.26",
-    "typedoc-plugin-mermaid": "^1.9.0",
     "typescript": "^4.9.5",
     "wcsize": "^1.0.0"
+  },
+  "dependencies": {
+    "@rwk/typedoc-plugin-mermaid": "^1.9.0-test"
   }
 }
