@@ -28,7 +28,7 @@ A `Future` can be in one of these states:
   transitions to _Rejected_. `Future`.`state` will remain at `”TIMEOUT”` to
   denote why it was rejected.
 
-  The enueration in `Future`.`state` will be all uppercase.
+  The enueration in `Future`.`state` is will be all uppercase.
 
 ```mermaid
 stateDiagram-v2
@@ -144,7 +144,7 @@ only happen if the future is creaed with `Future`.`timeoutFromNow`() or
 
 Cancel a pending or executing `Future`. Does nothing if it has completed.
 
-Canceling a `Future` while the computation is running depends on the computation to
+Cancelling a `Future` while the computation is running depends on the computation to
 check _future_.`isCancelled`() to actually halt execution, but the `Future`
 will be cancelled regardless.
 

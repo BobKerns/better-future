@@ -52,7 +52,7 @@ export const enum State {
 }
 
 /**
- * Internal shared state of a {@link Future}. This s the sared state of all
+ * Internal shared state of a {@link Future}. This is the shared state of all
  * {@link Future} instances that are derived from a single computation.
  * @hidden
  */
@@ -60,20 +60,103 @@ class FutureState<T> {
     // The computation to be performed, or null if it is already started or no longer eligible.
     computation?: Computation<T> | null;
     // The Promise that handles OnStart handlers.
-    onStartPromise: Promise<UnixTime>;
-    // The Promise that handles OnTimeout handlers.
-    onTimeoutPromise: Promise<Timeout<T>>;
-    // The Promise that handles OnCancel handlers.
-    onCancelPromise: Promise<Cancelled<T>>;
+    #onStartPromise?: Promise<UnixTime>;
+    #onStart?: StartCallback | null;
+    #ensureStartPromise() {
+        if (!this.#onStartPromise) {
+            this.#onStartPromise = new Promise<UnixTime>(resolve => {
+                this.#onStart = resolve;
+            });
+            if (this.startTime) {
+                this.#onStart?.(this.startTime);
+            } 
+        }
+        return this.#onStartPromise;
+    }
+    get onStartPromise() {
+        return this.#ensureStartPromise();
+    }
+
     // the fulfilled handler for the OnStart promise.
     // Caled when the computation is started.
-    onStart?: StartCallback | null;
+    get onStart(): StartCallback | undefined {
+        // null implies this handler is now irrelevant.
+        if (this.#onStart === null) {
+            return undefined;
+        }
+        this.#ensureStartPromise();
+        return this.#onStart;
+    }
+
+    set onStart(onStart: StartCallback | null | undefined) {
+        this.#onStart = onStart;
+    }
+
+    // The Promise that handles OnTimeout handlers.
+    #onTimeoutPromise?: Promise<Timeout<T>>;
+    #onTimeout?: FailCallback<Timeout<T>> | null;
+    #ensureTimeoutPromise() {
+        if (!this.#onTimeoutPromise) {
+            this.#onTimeoutPromise = new Promise<Timeout<T>>(
+                (resolve, reject) => (this.#onTimeout = resolve)
+            );
+            if (this.startTime) {
+                this.#onStart?.(this.startTime);
+            } 
+        }
+        return this.#onTimeoutPromise;
+    }
+
+    get onTimeoutPromise() {
+        return this.#ensureTimeoutPromise();
+    }
+
     // the fulfilled handler for the OnTimeout promise
     // Called when the computation times out.
-    onTimeout?: FailCallback<Timeout<T>> | null;
+    get onTimeout(): FailCallback<Timeout<T>> | undefined {
+        // null implies this handler is now irrelevant.
+        if (this.#onTimeout === null) {
+            return undefined;
+        }
+        this.#ensureTimeoutPromise();
+        return this.#onTimeout;
+    }
+
+    set onTimeout(onTimeout: FailCallback<Timeout<T>> | null | undefined) {
+        this.#onTimeout = onTimeout;
+    }
+
+    // The Promise that handles OnCancel handlers.
+    #onCancelPromise?: Promise<Cancelled<T>>;
+    #onCancel?: FailCallback<Cancelled<T>> | null;
+    #ensureCancelPromise() {
+        if (!this.#onCancelPromise) {
+            this.#onCancelPromise = new Promise<Cancelled<T>>(
+                (resolve, reject) => (this.#onCancel = resolve)
+            );
+        }
+        return this.#onCancelPromise;
+    }   
+
+    get onCancelPromise() {
+        return this.#ensureCancelPromise();
+    }
+
     // The fulfilled handler for the OnCancel promise
     // Called when the computation is cancelled.
-    onCancel?: FailCallback<Cancelled<T>> | null;
+    get onCancel(): FailCallback<Cancelled<T>> | undefined {
+        // null implies this handler is now irrelevant.
+        if (this.#onCancel === null) {
+            return undefined;
+        }
+        this.#ensureCancelPromise();
+        return this.#onCancel;
+    }
+
+    set onCancel(onCancel: FailCallback<Cancelled<T>> | undefined | null) {
+        this.#onCancel = onCancel;
+    }
+
     //
     startTime?: UnixTime;
     // Enables cancellation and timeout.
@@ -85,15 +168,6 @@ class FutureState<T> {
 
     // Create an initialize the shared state.
     constructor() {
-        this.onStartPromise = new Promise<UnixTime>(
-            (resolve, reject) => (this.onStart = resolve)
-        );
-        this.onTimeoutPromise = new Promise(
-            (resolve, reject) => (this.onTimeout = resolve)
-        );
-        this.onCancelPromise = new Promise(
-            (resolve, reject) => (this.onCancel = resolve)
-        );
     }
 }
 
@@ -102,6 +176,72 @@ class FutureState<T> {
  * It is a promise that can be cancelled or timed out, but does not begin
  * running until until there is a {@link #then} handler for it, or it is
  * explicitly started with {@link #start}.
+ * 
+ * A `Future` can be in one of these states:
+
+* {@link #PENDING}: The initial state. The computation has not yet been started.
+* {@link #STARTED}: The computation has been started, but has neither returned nor
+  thrown an exception. This corresponds to the _Pending_ state in a `Promise`.
+* {@link #FULFILLED} The computation has returned a value.
+* {@link #REJECTED}: The computation has thrown an exception or returned a rejected
+  `Promise`.
+* {@link #CANCELLED}: After being cancelled, the `Future` will be in this state until
+  all `onCancel` handlers have been called, after which it transitions to
+  _Rejected_. {@link Future#state|Future`.`state`} will remain at `{@link #CANCELLED}` to denote why it
+  was rejected.
+* {@link #TIMEOUT}: If a `Future` times out (see `Future`.`timeout`()), it will be in
+  this state until all `onTimeout` handlers have been called, after which it
+  transitions to _Rejected_. {@link #state|`future`.`state} will remain at {@link #timeout} to
+  denote why it was rejected.
+
+  The enueration in {@link #state|`future`.`state} is will be all uppercase.
+ 
+  @mermaid
+```mermaid
+stateDiagram-v2
+    direction LR
+
+    [*] --> Pending
+    Pending --> Started : .then()
+    Pending --> Started : .start()
+    Started --> state=FULFILLED : computation returns
+    state=FULFILLED --> Fulfilled
+    Started --> state=REJECTED : computation throws
+    state=REJECTED --> Rejected
+    Pending --> Cancelled : cancel
+    Started --> Cancelled : cancel
+    Cancelled --> Rejected
+
+    state Pending {
+      [*] --> state=PENDING
+      state=PENDING --> [*]
+    }
+
+    state Started {
+      [*] --> state=STARTED
+      state=STARTED --> NotifyStarted
+      NotifyStarted --> [*]
+      NotifyStarted : Notify onStart
+    }
+    state Fulfilled {
+      [*] --> NotifyFulfilled
+      NotifyFulfilled --> [*]
+      NotifyFulfilled : Notify onFullfilled
+    }
+
+    state Rejected {
+      [*] --> NotifyRejected
+      NotifyRejected --> [*]
+      NotifyRejected : Notify onRejected
+    }
+
+    state Cancelled {
+      [*] --> state=CANCELLED
+      state=CANCELLED --> NotifyCancelled
+      NotifyCancelled --> [*]
+      NotifyCancelled: Notif onCancelled
+    }
+```
  */
 export class Future<T> {
     /**
@@ -171,7 +311,8 @@ export class Future<T> {
                         return undefined as T;
                     }
                 };
-            }).then(
+            })
+            .then(
                 (v: T|undefined) => this.#resolved(State.FULFILLED, undefined as any as Handler<T|undefined>, v, null),
                 (e) =>
                     Throw(e instanceof Timeout<T>
@@ -196,8 +337,8 @@ export class Future<T> {
      */
     #resolved<T>(state: State, handler: Handler<T> | null | undefined, v: T, e: Error | null) {
         this.#s.state = state;
-        this.#s.computation = this.#s.onCancel = null;
-        this.#s.onTimeout = this.#s.onStart = null;
+        this.#s.computation = this.#s.onCancel = undefined;
+        this.#s.onTimeout = this.#s.onStart = undefined;
         if (e) this.#s.exception = e;
         handler?.(v);
         return v;
@@ -324,7 +465,7 @@ export class Future<T> {
      * @returns this {@link Future} instance.
      */
     onCancel(handler: FailCallback<Cancelled<T>>) {
-        this.#s.onCancelPromise.catch(handler);
+        this.#s.onCancelPromise?.catch(handler);
         return this;
     }
 
