@@ -10,7 +10,7 @@ or not performed at all when they may not be needed.
 A {@link Future} can be in one of these states:
 
 * {@link #PENDING}: The initial state. The computation has not yet been started.
-* {@link #STARTED}: The computation has been started, but has neither returned nor
+* {@link #RUNNING}: The computation has been started, but has neither returned nor
   thrown an exception. This corresponds to the _Pending_ state in a `Promise`.
 * {@link #FULFILLED} The computation has returned a value.
 * {@link #REJECTED}: The computation has thrown an exception or returned a rejected

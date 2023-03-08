@@ -1,16 +1,16 @@
 stateDiagram-v2
     direction LR
     [*] --> Pending
-    Pending --> Started : .then()
-    Pending --> Started : .start()
-    Started --> state=FULFILLED : computation returns
+    Pending --> Running : .then()
+    Pending --> Running : .start()
+    Running --> state=FULFILLED : computation returns
     state=FULFILLED --> Fulfilled
-    Started --> STATE=REJECTED : computation throws
+    Running --> STATE=REJECTED : computation throws
     STATE=REJECTED --> Rejected
-    Started --> Timeout : timeout
+    Running --> Timeout : timeout
     Timeout --> Rejected
     Pending --> Cancelled : cancel
-    Started --> Cancelled : cancel
+    Running --> Cancelled : cancel
     Cancelled --> Rejected
 
     state Pending {
@@ -18,9 +18,9 @@ stateDiagram-v2
       state=PENDING --> [*]
     }
 
-    state Started {
-      [*] --> state=STARTED
-      state=STARTED --> NotifyStarted
+    state Running {
+      [*] --> state=RUNNING
+      state=RUNNING --> NotifyStarted
       NotifyStarted --> Timer
       NotifyStarted --> Execute
       Execute --> [*]

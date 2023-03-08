@@ -1,8 +1,8 @@
 stateDiagram-v2
     direction LR
     [*] --> Pending
-    Pending --> Started : immediate
-    Started --> state=REJECTED : computation throws
+    Pending --> Running : immediate
+    Running --> state=REJECTED : computation throws
     state=REJECTED --> Rejected
 
     state Pending {
@@ -12,9 +12,9 @@ stateDiagram-v2
       Timer : Start Timer
     }
 
-    state Started {
-      [*] --> state=STARTED
-      state=STARTED --> NotifyStarted
+    state Running {
+      [*] --> state=RUNNING
+      state=RUNNING --> NotifyStarted
       NotifyStarted --> [*]
       NotifyStarted : Notify onStart
     }

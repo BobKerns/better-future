@@ -44,7 +44,7 @@ export type StartCallback = (time: UnixTime) => void;
  */
 export const enum State {
     PENDING = 'PENDING',
-    STARTED = 'STARTED',
+    RUNNING = 'RUNNING',
     FULFILLED = 'FULFILLED',
     REJECTED = 'REJECTED',
     TIMEOUT = 'TIMEOUT',
@@ -180,7 +180,7 @@ class FutureState<T> {
  * A {@link Future} can be in one of these states:
  *
  * * {@link #PENDING}: The initial state. The computation has not yet been started.
- * * {@link #STARTED}: The computation has been started, but has neither returned nor
+ * * {@link #RUNNING}: The computation has been started, but has neither returned nor
  *   thrown an exception. This corresponds to the _Pending_ state in a
  *   [`Promise`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise).
  * * {@link #FULFILLED} The computation has returned a value.
@@ -255,7 +255,7 @@ export class Future<T> {
                 //
                 this.#s.computation = (): T | PromiseLike<T|undefined> | undefined => {
                     this.#s.computation = null;
-                    this.#s.state = State.STARTED;
+                    this.#s.state = State.RUNNING;
                     this.#s.startTime = Date.now();
                     this.#s.onStart?.(this.#s.startTime);
                     try {
@@ -264,7 +264,7 @@ export class Future<T> {
                         return v;
                     } catch (e: unknown) {
                         // Not if this is already resolved.
-                        if (this.#s.state === State.STARTED) {
+                        if (this.#s.state === State.RUNNING) {
                             this.#s.exception = e as Error;
                             this.#s.state = State.REJECTED;
                         }
@@ -402,7 +402,7 @@ export class Future<T> {
      * Cancellation-aware computations should check the {@link #isCancelled} proprety,
      * or use the {@link #check} method, to terminate early.
      *
-     * If the state is not {@link #PENDING} or {@link #STARTED}, this method
+     * If the state is not {@link #PENDING} or {@link #RUNNING}, this method
      * does nothing.
      *
      * ![State Diagram for cancel()](../assets/cancel.svg)
@@ -451,14 +451,14 @@ export class Future<T> {
      * terminate early.
      */
     get isCancelled() {
-        return !(this.#s.state === State.PENDING || this.#s.state === State.STARTED);
+        return !(this.#s.state === State.PENDING || this.#s.state === State.RUNNING);
     }
 
     /**
      * An alternative for cancellation-aware computations to using {@link #isCancelled}.
      *
      * The supplied _continuation_ is called only if the {@link Future} is in the
-     * {@link #STARTED} state. Otherwise, an exception is thrown, so the calling
+     * {@link #RUNNING} state. Otherwise, an exception is thrown, so the calling
      * computation can be terminated.
      */
     check<R>(continuation: Continuation<T,R>) {
@@ -467,7 +467,7 @@ export class Future<T> {
                 throw new Error(
                     "Check is to be used as part of a running Future computation."
                 );
-            case "STARTED":
+            case "RUNNING":
                 return continuation(this);
             case "TIMEOUT":
             case "CANCELLED":
@@ -487,7 +487,7 @@ export class Future<T> {
      * Future.delay(myComputation).start()
      * ```
      *
-     * Delay injects a delay into the {@link #STARTED} state, so the computation
+     * Delay injects a delay into the {@link #RUNNING} state, so the computation
      * will not start until the delay has elapsed.
      *
      * ![State diagram for Future.delay](../assets/delay.svg)

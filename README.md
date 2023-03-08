@@ -15,7 +15,7 @@ A [`Future`](api/classes/Future.html) can be in one of these states:
 
 * [`PENDING`](api/enums/State.html#PENDING):
   The initial state. The computation has not yet been started.
-* [`STARTED`](api/enums/State.html#STARTED):
+* [`RUNNING`](api/enums/State.html#RUNNING):
   The computation has been started, but has neither returned nor
   thrown an exception. This corresponds to the _Pending_ state in a
   [`Promise`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise).
@@ -57,7 +57,7 @@ Start the computation running, if it is not already running. When the computatio
 terminates, _onFulfilled_ or _onRejected_ will be called with the value or error
 as with a `Promise`.
 
-The state will transition to _Started_ if it was _Pending_.
+The state will transition to _Running_ if it was _Pending_.
 
 ### _future_.`catch`(_onRejected_)
 
@@ -65,7 +65,7 @@ If the state is _Fulfilled_, _onRejected_ is called immediately with the rejecti
 
 If the state is _Fulfilled_, _onRejected_ will not be called.
 
-If the state is _Pending_ or _Started_, and the state becomes _Fulfilled_, _onRejected_ will be called at that time.
+If the state is _Pending_ or _Running_, and the state becomes _Fulfilled_, _onRejected_ will be called at that time.
 
 ### _future_.`finally`(_handler_)
 
@@ -95,7 +95,7 @@ future.then(handler)
 
 ### _future_.`onStart`(_handler_)
 
-Regesters a _handler_ that that will be notified that the computation has started.
+Regesters a _handler_ that that will be notified that the computation has been started.
 The _handler_ will receive the time the computation started. Handlers can be added
 at any time, including long after the `Future` is resolved.
 
@@ -138,7 +138,7 @@ It is an error to call this from anywhere but an ongoing `Future` computation.
 Returns one of:
 
 * `”PENDING”`
-* `”STARTED”`
+* `”RUNNING”`
 * `TIMEOUT`
 * `CANCELLED`
 * `”FULFILLED”`

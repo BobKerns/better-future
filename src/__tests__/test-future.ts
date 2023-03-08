@@ -88,7 +88,7 @@ describe("Basic", () => {
         describe('Start'  , () => {
             test ("Never", () => {
                 const fNever = new Future(never);
-                expect(fNever.start().state).toBe('STARTED');
+                expect(fNever.start().state).toBe('RUNNING');
             });
             test ("Immediate", () => {
                 const fImmediate = new Future(() => 1);

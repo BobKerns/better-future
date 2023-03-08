@@ -1,9 +1,9 @@
 stateDiagram-v2
     direction LR
     [*] --> Pending
-    Pending --> Started : .then()
-    Pending --> Started : .start()
-    Started --> state=FULFILLED : computation returns
+    Pending --> Running : .then()
+    Pending --> Running : .start()
+    Running --> state=FULFILLED : computation returns
     state=FULFILLED --> Fulfilled
 
     state Pending {
@@ -13,9 +13,9 @@ stateDiagram-v2
       Timer : Start Timer
     }
 
-    state Started {
-      [*] --> state=STARTED
-      state=STARTED --> NotifyStarted
+    state Running {
+      [*] --> state=RUNNING
+      state=RUNNING --> NotifyStarted
       NotifyStarted --> [*]
       NotifyStarted : Notify onStart
     }
