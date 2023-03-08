@@ -1,0 +1,27 @@
+stateDiagram-v2
+    direction LR
+    [*] --> Pending
+    Pending --> Started : .then()
+    Pending --> Started : .start()
+    Started --> state=FULFILLED : computation returns
+    state=FULFILLED --> Fulfilled
+
+    state Pending {
+      [*] --> state=PENDING
+      state=PENDING --> Timer
+      Timer --> [*]
+      Timer : Start Timer
+    }
+
+    state Started {
+      [*] --> state=STARTED
+      state=STARTED --> NotifyStarted
+      NotifyStarted --> [*]
+      NotifyStarted : Notify onStart
+    }
+
+    state Fulfilled {
+      [*] --> NotifyFulfilled
+      NotifyFulfilled --> [*]
+      NotifyFulfilled : Notify onFullfilled
+    }

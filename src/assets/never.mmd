@@ -1,0 +1,15 @@
+stateDiagram-v2
+    direction LR
+    [*] --> Pending
+    Pending --> Started : .then()
+    Pending --> Started : .start()
+
+    state Pending {
+      [*] --> state=PENDING
+      state=PENDING --> [*]
+    }
+
+    state Started {
+      [*] --> state=STARTED
+      state=STARTED --> NotifyStarted
+    }

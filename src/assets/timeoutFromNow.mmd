@@ -1,0 +1,56 @@
+stateDiagram-v2
+    direction LR
+    [*] --> Pending
+    Pending --> Started : .then()
+    Pending --> Started : .start()
+    Started --> state=FULFILLED : computation returns
+    state=FULFILLED --> Fulfilled
+    Started --> state=REJECTED : computation throws
+    state=REJECTED --> Rejected
+    Started --> Timeout : timeout
+
+    Pending --> Timeout : timeout
+    Timeout --> Rejected
+    Pending --> Cancelled : cancel
+    Started --> Cancelled : cancel
+    Cancelled --> Rejected
+
+    state Pending {
+      [*] --> state=PENDING
+      state=PENDING --> Timer
+      Timer --> [*]
+      Timer : Start Timer
+    }
+
+     state Started {
+      [*] --> state=STARTED
+      state=STARTED --> NotifyStarted
+      NotifyStarted --> Execute
+      Execute --> [*]
+      NotifyStarted : Notify onStart
+    }
+
+    state Fulfilled {
+      [*] --> NotifyFulfilled
+      NotifyFulfilled --> [*]
+      NotifyFulfilled : Notify onFullfilled
+    }
+
+    state Rejected {
+      [*] --> NotifyRejected
+      NotifyRejected --> [*]
+      NotifyRejected : Notify onRejected
+    }
+
+    state Timeout {
+      [*] --> NotifyTimeout
+      NotifyTimeout --> [*]
+      NotifyTimeout : Notify onTimeout
+    }
+
+    state Cancelled {
+      [*] --> state=CANCELLED
+      state=CANCELLED --> NotifyCancelled
+      NotifyCancelled --> [*]
+      NotifyCancelled: Notif onCancelled
+    }

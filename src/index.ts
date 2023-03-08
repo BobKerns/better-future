@@ -1,5 +1,4 @@
 /*
- * @module Future
  * Copyright 2023 by Bob Kerns. Licensed under MIT license.
  */
 

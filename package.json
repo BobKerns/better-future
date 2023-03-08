@@ -10,7 +10,7 @@
   "unpkg": "lib/umd/index.js",
   "types": "lib/esm/index.d.ts",
   "scripts": {
-    "prepare": "for f in src/assets/*.mmd; do echo $(basename $f); mmdc -i $f -o src//assets/$(basename $f .mmd).svg; done",
+    "prepare": "npm run build:svg",
     "postprepare": "esbuild ./config/top-jest.config.ts --bundle --format=esm --sourcemap --target=esnext --outfile=build/config/top-jest.config.js",
     "pretest": "esbuild  ./src/__tests__/*.ts --format=esm --platform=node --target=es2019 --bundle --outdir=build/src/__tests__/tests.cjs",
     "test": "jest",
@@ -18,9 +18,10 @@
     "postbuild": "npm run build:docs",
     "clean": "rm -rf build lib docs && rm src/assets/*.svg",
     "prepublishOnly": "NODE_ENV=production npm run build",
-    "prebuild:docs": "npm install",
+    "build:svg": "for f in src/assets/*.mmd; do echo $(basename $f); mmdc -i $f -o assets/$(basename $f .mmd).svg; done",
+    "build:md": "marked -o build/docs/index.html -i README.md --gfm --breaks && mkdir -p build/docs/assets && rm -f build/docs/assets/* && cp -r src/assets/*.svg build/docs/assets/",
     "build:docs": "GRAPHVIZ_DOT=\"$(which dot)\" typedoc ${OPTIONS} --out build/docs/api src/",
-    "postbuild:docs": "mkdir -p build/docs/api/assets && for f in src/assets/*.mmd; do echo $(basename $f); mmdc -i $f -o build/docs/api/assets/$(basename $f .mmd).svg; done;",
+    "postbuild:docs": "npm run build:svg && npm run build:md",
     "serve": "NODE_ENV=development SERVE=true serve",
     "predocs": "OPTIONS='--watch' npm run build:docs; npm run watch",
     "docs": "serve"

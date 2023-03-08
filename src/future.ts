@@ -69,7 +69,7 @@ class FutureState<T> {
             });
             if (this.startTime) {
                 this.#onStart?.(this.startTime);
-            } 
+            }
         }
         return this.#onStartPromise;
     }
@@ -78,7 +78,7 @@ class FutureState<T> {
     }
 
     // the fulfilled handler for the OnStart promise.
-    // Caled when the computation is started.
+    // Called when the computation is started.
     get onStart(): StartCallback | undefined {
         // null implies this handler is now irrelevant.
         if (this.#onStart === null) {
@@ -102,7 +102,7 @@ class FutureState<T> {
             );
             if (this.startTime) {
                 this.#onStart?.(this.startTime);
-            } 
+            }
         }
         return this.#onTimeoutPromise;
     }
@@ -136,7 +136,7 @@ class FutureState<T> {
             );
         }
         return this.#onCancelPromise;
-    }   
+    }
 
     get onCancelPromise() {
         return this.#ensureCancelPromise();
@@ -176,73 +176,31 @@ class FutureState<T> {
  * It is a promise that can be cancelled or timed out, but does not begin
  * running until until there is a {@link #then} handler for it, or it is
  * explicitly started with {@link #start}.
- * 
- * A `Future` can be in one of these states:
-
-* {@link #PENDING}: The initial state. The computation has not yet been started.
-* {@link #STARTED}: The computation has been started, but has neither returned nor
-  thrown an exception. This corresponds to the _Pending_ state in a `Promise`.
-* {@link #FULFILLED} The computation has returned a value.
-* {@link #REJECTED}: The computation has thrown an exception or returned a rejected
-  `Promise`.
-* {@link #CANCELLED}: After being cancelled, the `Future` will be in this state until
-  all `onCancel` handlers have been called, after which it transitions to
-  _Rejected_. {@link Future#state|Future`.`state`} will remain at `{@link #CANCELLED}` to denote why it
-  was rejected.
-* {@link #TIMEOUT}: If a `Future` times out (see `Future`.`timeout`()), it will be in
-  this state until all `onTimeout` handlers have been called, after which it
-  transitions to _Rejected_. {@link #state|`future`.`state} will remain at {@link #timeout} to
-  denote why it was rejected.
-
-  The enueration in {@link #state|`future`.`state} is will be all uppercase.
- 
-  @mermaid
-```mermaid
-stateDiagram-v2
-    direction LR
-
-    [*] --> Pending
-    Pending --> Started : .then()
-    Pending --> Started : .start()
-    Started --> state=FULFILLED : computation returns
-    state=FULFILLED --> Fulfilled
-    Started --> state=REJECTED : computation throws
-    state=REJECTED --> Rejected
-    Pending --> Cancelled : cancel
-    Started --> Cancelled : cancel
-    Cancelled --> Rejected
-
-    state Pending {
-      [*] --> state=PENDING
-      state=PENDING --> [*]
-    }
-
-    state Started {
-      [*] --> state=STARTED
-      state=STARTED --> NotifyStarted
-      NotifyStarted --> [*]
-      NotifyStarted : Notify onStart
-    }
-    state Fulfilled {
-      [*] --> NotifyFulfilled
-      NotifyFulfilled --> [*]
-      NotifyFulfilled : Notify onFullfilled
-    }
-
-    state Rejected {
-      [*] --> NotifyRejected
-      NotifyRejected --> [*]
-      NotifyRejected : Notify onRejected
-    }
-
-    state Cancelled {
-      [*] --> state=CANCELLED
-      state=CANCELLED --> NotifyCancelled
-      NotifyCancelled --> [*]
-      NotifyCancelled: Notif onCancelled
-    }
-```
- */
+ *
+ * A {@link Future} can be in one of these states:
+ *
+ * * {@link #PENDING}: The initial state. The computation has not yet been started.
+ * * {@link #STARTED}: The computation has been started, but has neither returned nor
+ *   thrown an exception. This corresponds to the _Pending_ state in a
+ *   [`Promise`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise).
+ * * {@link #FULFILLED} The computation has returned a value.
+ * * {@link #REJECTED}: The computation has thrown an exception or returned a rejected
+ *   [`Promise`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise).
+ * * {@link #CANCELLED}: After being cancelled, the `{@link Future} will be in this
+ *   state until all {@link #onCancel} handlers have been called, after which it
+ *   transitions to {@link #REJECTED}. {@link #state} will remain at {@link #CANCELLED}
+ *   to denote why it was rejected.
+ * * {@link #TIMEOUT}: If a {@link Future} times out (see {@link #timeout}, it will be in
+ *    this state until all {@link #onTimeout} handlers have been run.
+ *
+ * The following diagram shows the basic states of a {@link Future} (excluding timeouts), which
+ * are covered in more detail later.
+ *
+ * ![Diagram of basic states](../assets/basic-states.svg)
+ *
+ * Timeouts are layered on top of the basic {@link Future} states above. The exact diagram
+ * depends on whether {@link #timeout} or {@link #timeoutAfter} is used.
+*/
 export class Future<T> {
     /**
      * Shared state
@@ -250,7 +208,10 @@ export class Future<T> {
      */
     #s: FutureState<T>;
 
-    // The promise that will be resolved when the computation is complete.
+    /**
+     * The promise that will be resolved when the computation is complete.
+     * @hidden
+     */
     #promise: Promise<any>;
 
     // Indicates the type of promise to be used to construct more Futures.
@@ -347,7 +308,7 @@ export class Future<T> {
     /**
      * Starts the computation, then returns a new {@link Future}
      * that will be resolved when the computation
-     * is complete, and which will resolve with the result of _onFulfilled_ on#
+     * is complete, and which will resolve with the result of _onFulfilled_ being
      * the computation's value. If the computation throws an exception, the new
      * {@link Future} will get the result of the _onRejected_ handler, if any.
      * Otherwise, the new {@link Future} will be rejected with the same exception.
@@ -444,6 +405,8 @@ export class Future<T> {
      * If the state is not {@link #PENDING} or {@link #STARTED}, this method
      * does nothing.
      *
+     * ![State Diagram for cancel()](../assets/cancel.svg)
+     *
      * @param msg A custom message to be included in the {@link Cancelled} exception.
      * @returns this {@link Future} instance.
      */
@@ -517,6 +480,18 @@ export class Future<T> {
     /**
      * Create a {@link Future} that will not start until the specified delay
      * after the computation is requested.
+     *
+     * To immediately start the delay countdown:
+     *
+     * ```javascript
+     * Future.delay(myComputation).start()
+     * ```
+     *
+     * Delay injects a delay into the {@link #STARTED} state, so the computation
+     * will not start until the delay has elapsed.
+     *
+     * ![State diagram for Future.delay](../assets/delay.svg)
+     *
      * @param delay the delay in milliseconds.
      * @returns the delaed {@link Future}.
      */
@@ -530,6 +505,8 @@ export class Future<T> {
     /**
      * Create a {@link Future} that will time out _timeout_ milliseconds after
      * the computation is started.
+     *
+     * ![State diagram for Future.timeoutFromNow](../assets/timeoutFromNow.svg)
      *
      * @param timeout the timeout in milliseconds.
      * @param msg An optional message to be used in the {@link Timeout} exception.
@@ -556,6 +533,8 @@ export class Future<T> {
     /**
      * Create a {@link Future} that will time out _timeout_ milliseconds after creation,
      * regardless of when or if the result is requested.
+     *
+     * ![State diagram for Future.timeout](../assets/timeout.svg)
      *
      * @param timeout the timeout in milliseconds.
      * @param msg  An optional message to be used in the {@link Timeout} exception.
@@ -586,6 +565,8 @@ export class Future<T> {
      * This is useful in testing or when a resolved promise is needed that
      * also is expected to be a {@link Future}.
      *
+     * ![State diagram for Future.resolve](../assets/resolve.svg)
+     *
      * @param v A value or a Promise-like container for a value.
      * @returns a {@link Future} pre-resolved to that value.
      */
@@ -598,6 +579,8 @@ export class Future<T> {
      *
      * This is useful in testing or when a resolved promise is needed that
      * also is expected to be a {@link Future}.
+     *
+     * ![State diagram for Future.reject](../assets/reject.svg)
      *
      * @param e An exception or a Promise-like container for an exception.
      * @returns a {@link Future} pre-rejected with that exception.
@@ -612,6 +595,8 @@ export class Future<T> {
      * This is useful in testing or when a resolved promise is needed that
      * also is expected to be a {@link Future}.
      *
+     * ![State diagram for Future.cancelled](../assets/cancelled.svg)
+     *
      * @param c A {@link Cancelled} exception to be used, or a msg to be used to create one.
      * @returns
      */
@@ -625,6 +610,8 @@ export class Future<T> {
      *
      * It can also be used with {@link #timeout} or {@link #timeoutFromNow}
      * to create a fixed timeout.
+     *
+     * ![State diagram for Future.never](../assets/never.svg)
      *
      * @returns a {@link Future} that will never complete.
      */

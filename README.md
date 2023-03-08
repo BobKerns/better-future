@@ -2,81 +2,46 @@
 
 ## API
 
-### class `Future`
+## Lifecyce of a [`Future`](build/docs/api/classes/Future.html)
 
-A `Future` is just like a `Promise`, except the computation does not start until and
-unless `.then`() is called. It is a _thenable_, and thus can be used anywhere a
-`Promise` can be used.
+A [`Future`](api/classes/Future.html) is a computation that
+will be performed in the future. It is a
+[`Promise`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)
+that can be cancelled or timed out, but does not begin
+running until until there is a {@link #then} handler for it, or it is
+explicitly started with {@link #start}.
 
-This allows for a form of lazy evaluation, where computations are deferred until needed,
-or not performed at all when they may not be needed.
+A [`Future`](api/classes/Future.html) can be in one of these states:
 
-A `Future` can be in one of these states:
+* [`PENDING`](api/enums/State.html#PENDING):
+  The initial state. The computation has not yet been started.
+* [`STARTED`](api/enums/State.html#STARTED):
+  The computation has been started, but has neither returned nor
+  thrown an exception. This corresponds to the _Pending_ state in a
+  [`Promise`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise).
+* [`FULFILLED`](api/enums/State.html#FULFILLED)
+  The computation has returned a value.
+* [`REJECTED`](api/enums/State.html#REJECTED):
+  The computation has thrown an exception or returned a rejected
+  [`Promise`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise).
+* [`CANCELLED`](api/enums/State.html#CANCELLED): After being cancelled, the
+  [`Future`](api/classes/Future.html) will be in this state until
+  all {@link #onCancel} handlers have been called, after which it transitions to
+  [`REJECTED`](api/enums/State.html#REJECTED). [`state`](build/docs/api/classes/Future.html#state) will remain at
+  [`CANCELLED`](api/enums/State.html#CANCELLED) to denote why
+  it was rejected.
+* [`TIMEOUT`](api/enums/State.html#TIMEOUT): If a [`Future`](build/docs/api/classes/Future.html)
+  times out (see [`timeout`](api/classes/Future.html#timeout), it will be in
+  this state until all [`onTimeout`](api/classes/Future.html#onTimeout) handlers have been run.
 
-* _Pending_: The initial state. The computation has not yet been started.
-* _Started_: The computation has been started, but has neither returned nor
-  thrown an exception. This corresponds to the _Pending_ state in a `Promise`.
-* _Fulfilled_ The computation has returned a value.
-* _Rejected_: The computation has thrown an exception or returned a rejected
-  `Promise`.
-* _Cancelled_: After being cancelled, the `Future` will be in this state until
-  all `onCancel` handlers have been called, after which it transitions to
-  _Rejected_. `Future`.`state` will remain at `”CANCELLED”` to denote why it
-  was rejected.
-* _Timeout_: If a `Future` times out (see `Future`.`timeout`()), it will be in
-  this state until all `onTimeout` handlers have been called, after which it
-  transitions to _Rejected_. `Future`.`state` will remain at `”TIMEOUT”` to
-  denote why it was rejected.
+Timeouts are layered on top of basic [`Future`](api/classes/Future.html)
+states. The exact state diagram depends on whether [`Future.timeout`](api/classes/Future.html#timeout) or [`Future.timeoutAfter`](api/classes/Future.html#timeoutAfter)is used.
 
-  The enueration in `Future`.`state` is will be all uppercase.
+![State diagram of basic Future](assets/basic-states.svg)
 
-```mermaid
-stateDiagram-v2
-    direction LR
-
-    [*] --> Pending
-    Pending --> Started : .then()
-    Pending --> Started : .start()
-    Started --> state=FULFILLED : computation returns
-    state=FULFILLED --> Fulfilled
-    Started --> state=REJECTED : computation throws
-    state=REJECTED --> Rejected
-    Pending --> Cancelled : cancel
-    Started --> Cancelled : cancel
-    Cancelled --> Rejected
-
-    state Pending {
-      [*] --> state=PENDING
-      state=PENDING --> [*]
-    }
-
-    state Started {
-      [*] --> state=STARTED
-      state=STARTED --> NotifyStarted
-      NotifyStarted --> [*]
-      NotifyStarted : Notify onStart
-    }
-    state Fulfilled {
-      [*] --> NotifyFulfilled
-      NotifyFulfilled --> [*]
-      NotifyFulfilled : Notify onFullfilled
-    }
-
-    state Rejected {
-      [*] --> NotifyRejected
-      NotifyRejected --> [*]
-      NotifyRejected : Notify onRejected
-    }
-
-    state Cancelled {
-      [*] --> state=CANCELLED
-      state=CANCELLED --> NotifyCancelled
-      NotifyCancelled --> [*]
-      NotifyCancelled: Notif onCancelled
-    }
-```
-
-`.catch`(), `.finally`(), and `.when`() do not result in state changes.
+[`.catch`()](api/classes/Future.html#catch),
+[`.finally`(](api/classes/Future.html#finallu)),
+and [`.when`()](api/classes/Future.html#when) do not result in state changes.
 
 ### `new Future`(_computation_)
 
@@ -148,41 +113,7 @@ Cancelling a `Future` while the computation is running depends on the computatio
 check _future_.`isCancelled`() to actually halt execution, but the `Future`
 will be cancelled regardless.
 
-```mermaid
-stateDiagram-v2
-    direction LR
-
-    [*] --> Pending
-    Pending --> Started : .then()
-    Pending --> Started : .start()
-    Pending --> Cancelled : cancel
-    Started --> Cancelled : cancel
-    Cancelled --> Rejected
-
-    state Pending {
-      [*] --> state=PENDING
-      state=PENDING --> [*]
-    }
-
-    state Started {
-      [*] --> state=STARTED
-      state=STARTED --> NotifyStarted
-      NotifyStarted --> [*]
-      NotifyStarted : Notify onStart
-    }
-    state Rejected {
-      [*] --> NotifyRejected
-      NotifyRejected --> [*]
-      NotifyRejected : Notify onRejected
-    }
-
-    state Cancelled {
-      [*] --> state=CANCELLED
-      state=CANCELLED --> NotifyCancelled
-      NotifyCancelled --> [*]
-      NotifyCancelled: Notif onCancelled
-    }
-```
+![State Diagram for cancelling](assets/cancel.svg)
 
 ### _future_.`isCancelled`()
 
@@ -224,53 +155,8 @@ To immediately start the delay countdown:
 Future.delay(myComputation).start()
 ```
 
-```mermaid
-stateDiagram-v2
-    direction LR
+![State Diagram for delay](assets/delay.svg)
 
-    [*] --> Pending
-    Pending --> Started : .then()
-    Pending --> Started : .start()
-    Started --> state=FULFILLED : computation returns
-    state=FULFILLED --> Fulfilled
-    Started --> state=REJECTED : computation throws
-    state=REJECTED --> Rejected
-    Pending --> Cancelled : cancel
-    Started --> Cancelled : cancel
-    Cancelled --> Rejected
-
-    state Pending {
-      [*] --> state=PENDING
-      state=PENDING --> Delay
-      Delay --> [*]
-    }
-
-    state Started {
-      [*] --> state=STARTED
-      state=STARTED --> NotifyStarted
-      NotifyStarted --> [*]
-      NotifyStarted : Notify onStart
-    }
-
-    state Fulfilled {
-      [*] --> NotifyFulfilled
-      NotifyFulfilled --> [*]
-      NotifyFulfilled : Notify onFullfilled handlers
-    }
-
-    state Rejected {
-      [*] --> NotifyRejected
-      NotifyRejected --> [*]
-      NotifyRejected : Notify onRejected handlers
-    }
-
-    state Cancelled {
-      [*] --> state=CANCELLED
-      state=CANCELLED --> NotifyCancelled
-      NotifyCancelled --> [*]
-      NotifyCancelled: Notif onCancelled
-    }
-```
 
 ### `Future`.`timeout` (_ms_) (_computation_)
 
@@ -278,62 +164,7 @@ Returns a function that when applied to a computation, will return a
 `Future` that will time out that computation _ms_ milliseconds after
 it is started.
 
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> Pending
-    Pending --> Started : .then()
-    Pending --> Started : .start()
-    Started --> state=FULFILLED : computation returns
-    state=FULFILLED --> Fulfilled
-    Started --> STATE=REJECTED : computation throws
-    STATE=REJECTED --> Rejected
-    Started --> Timeout : timeout
-    Timeout --> Rejected
-    Pending --> Cancelled : cancel
-    Started --> Cancelled : cancel
-    Cancelled --> Rejected
-
-    state Pending {
-      [*] --> state=PENDING
-      state=PENDING --> [*]
-    }
-
-    state Started {
-      [*] --> state=STARTED
-      state=STARTED --> NotifyStarted
-      NotifyStarted --> Timer
-      Timer --> [*]
-      Timer : Start Timer
-      NotifyStarted : Notify onStart
-    }
-
-    state Fulfilled {
-      [*] --> NotifyFulfilled
-      NotifyFulfilled --> [*]
-      NotifyFulfilled : Notify onFullfilled
-    }
-
-    state Rejected {
-      [*] --> NotifyRejected
-      NotifyRejected --> [*]
-      NotifyRejected : Notify onRejected
-    }
-
-    state Timeout {
-      [*] --> state=TIMEOUT
-      state=TIMEOUT --> NotifyTimeout
-      NotifyTimeout --> [*]
-      NotifyTimeout : Notify onTimeout
-    }
-
-    state Cancelled {
-      [*] --> state=CANCELLED
-      state=CANCELLED --> NotifyCancelled
-      NotifyCancelled --> [*]
-      NotifyCancelled: Notif onCancelled
-    }
-```
+![State diagram with timeout](assets/timeout.svg)
 
 ### `Future`.`timeoutFromNow` (_ms_) (_computation_)
 
@@ -341,190 +172,33 @@ Returns a function that when applied to a computation, will return a
 `Future` that will time out that computation
 _ms_ milliseconds from when when it enters the _Pending_ state.
 
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> Pending
-    Pending --> Started : .then()
-    Pending --> Started : .start()
-    Started --> state=FULFILLED : computation returns
-    state=FULFILLED --> Fulfilled
-    Started --> state=REJECTED : computation throws
-    state=REJECTED --> Rejected
-    Started --> Timeout : timeout
-
-    Pending --> Timeout : timeout
-    Timeout --> Rejected
-    Pending --> Cancelled : cancel
-    Started --> Cancelled : cancel
-    Cancelled --> Rejected
-
-    state Pending {
-      [*] --> state=PENDING
-      state=PENDING --> Timer
-      Timer --> [*]
-      Timer : Start Timer
-    }
-
-    state Started {
-      [*] --> state=STARTED
-      state=STARTED --> NotifyStarted
-      NotifyStarted --> [*]
-      NotifyStarted : Notify onStart
-    }
-
-    state Fulfilled {
-      [*] --> NotifyFulfilled
-      NotifyFulfilled --> [*]
-      NotifyFulfilled : Notify onFullfilled
-    }
-
-    state Rejected {
-      [*] --> NotifyRejected
-      NotifyRejected --> [*]
-      NotifyRejected : Notify onRejected
-    }
-
-    state Timeout {
-      [*] --> NotifyTimeout
-      NotifyTimeout --> [*]
-      NotifyTimeout : Notify onTimeout
-    }
-
-    state Cancelled {
-      [*] --> state=CANCELLED
-      state=CANCELLED --> NotifyCancelled
-      NotifyCancelled --> [*]
-      NotifyCancelled: Notif onCancelled
-    }
-```
+![State Diagram for Future.timeoutFromNow](assets/timeoutFromNow.svg)
 
 ### `Future`.`resolve`(_value_)
 
 Create a `Future` that is pre-resolved to the specified value. Useful for testing
 and for places that expect a full `Future` but you need to supply a resolved value.
 
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> Pending
-    Pending --> Started : .then()
-    Pending --> Started : .start()
-    Started --> state=FULFILLED : computation returns
-    state=FULFILLED --> Fulfilled
-
-    state Pending {
-      [*] --> state=PENDING
-      state=PENDING --> Timer
-      Timer --> [*]
-      Timer : Start Timer
-    }
-
-    state Started {
-      [*] --> state=STARTED
-      state=STARTED --> NotifyStarted
-      NotifyStarted --> [*]
-      NotifyStarted : Notify onStart
-    }
-
-    state Fulfilled {
-      [*] --> NotifyFulfilled
-      NotifyFulfilled --> [*]
-      NotifyFulfilled : Notify onFullfilled
-    }
-```
+![State Diagram for Future.resolve](assets/resolve.svg)
 
 ### `Future`.`reject`(_error_)
 
 Create a `Future` that is pre-rejected with the specified value. Useful fo resting
 and for places that expect a full `Future` but you need to supply a rejected value.
 
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> Pending
-    Pending --> Started : immediate
-    Started --> state=REJECTED : computation throws
-    state=REJECTED --> Rejected
-
-    state Pending {
-      [*] --> state=PENDING
-      state=PENDING --> Timer
-      Timer --> [*]
-      Timer : Start Timer
-    }
-
-    state Started {
-      [*] --> state=STARTED
-      state=STARTED --> NotifyStarted
-      NotifyStarted --> [*]
-      NotifyStarted : Notify onStart
-    }
-
-    state Rejected {
-      [*] --> NotifyRejected
-      NotifyRejected --> [*]
-      NotifyRejected : Notify onRejected
-    }
-```
+![State Diagram for Future.reject](assets/reject.svg)
 
 ### `Future`.`cancelled`(_msg_ = `Cancelled`)
 
 Return a pre-cancelled `Future`. Useful in testing.
 
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> Pending
-    Pending --> Cancelled : immediate
-    Cancelled --> Rejected
-
-    state Pending {
-      [*] --> state=PENDING
-      state=PENDING --> Timer
-      Timer --> [*]
-      Timer : Start Timer
-    }
-
-    state Rejected {
-      [*] --> NotifyRejected
-      NotifyRejected --> [*]
-      NotifyRejected : Notify onRejected
-    }
-
-    state Cancelled {
-      [*] --> state=CANCELLED
-      state=CANCELLED --> NotifyCancelled
-      NotifyCancelled --> [*]
-      NotifyCancelled: Notif onCancelled
-    }
-```
+![State Diagram for Future.cancelled](assets/cancelled.svg)
 
 ### `Future`.`never`()
 
 Return a `Future` that never arrives. Useful for testing and as a placeholder.
 
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> Pending
-    Pending --> Started : .then()
-    Pending --> Started : .start()
-
-    state Pending {
-      [*] --> state=PENDING
-      state=PENDING --> [*]
-    }
-
-    state Started {
-      [*] --> state=STARTED
-      state=STARTED --> NotifyStarted
-      NotifyStarted --> Timer
-      Timer --> [*]
-      Timer : Start Timer
-      NotifyStarted : Notify onStart
-    }
-```
+[State Diagram for Future.never](build/docs/api/classes/Future.html#never)
 
 ### `Future`.`race`(_promises_)
 
