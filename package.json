@@ -10,17 +10,20 @@
   "unpkg": "lib/umd/index.js",
   "types": "lib/esm/index.d.ts",
   "scripts": {
-    "pretest": "esbuild  ./src/__tests__/*.ts --format=esm --platform=node --target=es2019 --bundle --outdir=build/src/__tests__/tests.cjs && esbuild ./config/top-jest.config.ts --bundle --format=esm --sourcemap --target=esnext --outfile=build/config/top-jest.config.js",
+    "prepare": "for f in src/assets/*.mmd; do echo $(basename $f); mmdc -i $f -o src//assets/$(basename $f .mmd).svg; done",
+    "postprepare": "esbuild ./config/top-jest.config.ts --bundle --format=esm --sourcemap --target=esnext --outfile=build/config/top-jest.config.js",
+    "pretest": "esbuild  ./src/__tests__/*.ts --format=esm --platform=node --target=es2019 --bundle --outdir=build/src/__tests__/tests.cjs",
     "test": "jest",
     "build": "esbuild ./src/index.js --bundle --platform=node --target=es2019 --outfile=lib/cjs/index.jsdelivr && esbuild ./src/index.js --bundle --platform=browser --target=es2019 --outfile=lib/umd/index.js && esbuild ./src/index.js --bundle --platform=neutral --target=es2019 --outfile=lib/esm/index.js",
     "postbuild": "npm run build:docs",
-    "clean": "rm -rf build lib docs",
+    "clean": "rm -rf build lib docs && rm src/assets/*.svg",
     "prepublishOnly": "NODE_ENV=production npm run build",
     "prebuild:docs": "npm install",
-    "build:docs": "GRAPHVIZ_DOT=\"$(which dot)\" typedoc --out build/docs/api src/",
+    "build:docs": "GRAPHVIZ_DOT=\"$(which dot)\" typedoc ${OPTIONS} --out build/docs/api src/",
+    "postbuild:docs": "mkdir -p build/docs/api/assets && for f in src/assets/*.mmd; do echo $(basename $f); mmdc -i $f -o build/docs/api/assets/$(basename $f .mmd).svg; done;",
     "serve": "NODE_ENV=development SERVE=true serve",
-    "docs": "NODE_ENV=development SERVE=true SERVE_DOC=true serve",
-    "prewatch": "npm run build:devtools"
+    "predocs": "OPTIONS='--watch' npm run build:docs; npm run watch",
+    "docs": "serve"
   },
   "bin": {},
   "repository": {
@@ -41,23 +44,24 @@
   },
   "homepage": "https://github.com/BobKerns/better-future#readme",
   "devDependencies": {
-    "@jest/reporters": "^29.4.3",
+    "@jest/reporters": "^29.5.0",
     "@types/istanbul-lib-report": "^3.0.0",
     "@types/istanbul-reports": "^3.0.1",
     "@types/jest": "^29.4.0",
     "@types/mime": "^3.0.1",
-    "esbuild": "0.17.10",
-    "jest": "^29.4.3",
+    "esbuild": "^0.17.11",
+    "jest": "^29.5.0",
     "jest-mock-proxy": "^3.1.2",
     "mermaid": "^10.0.2",
+    "@mermaid-js/mermaid-cli": "^10.0.2",
     "serve": "^14.2.0",
     "ts-jest": "^29.0.5",
     "ts-node-dev": "^2.0.0",
     "typedoc": "^0.23.26",
+    "typedoc-plugin-mermaid": "^1.10.0",
     "typescript": "^4.9.5",
     "wcsize": "^1.0.0"
   },
   "dependencies": {
-    "@rwk/typedoc-plugin-mermaid": "^1.9.0-test"
   }
 }
