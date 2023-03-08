@@ -93,11 +93,11 @@ class FutureState<T> {
     }
 
     // The Promise that handles OnTimeout handlers.
-    #onTimeoutPromise?: Promise<Timeout<T>>;
-    #onTimeout?: FailCallback<Timeout<T>> | null;
+    #onTimeoutPromise?: Promise<TimeoutException<T>>;
+    #onTimeout?: FailCallback<TimeoutException<T>> | null;
     #ensureTimeoutPromise() {
         if (!this.#onTimeoutPromise) {
-            this.#onTimeoutPromise = new Promise<Timeout<T>>(
+            this.#onTimeoutPromise = new Promise<TimeoutException<T>>(
                 (resolve, reject) => (this.#onTimeout = resolve)
             );
             if (this.startTime) {
@@ -113,7 +113,7 @@ class FutureState<T> {
 
     // the fulfilled handler for the OnTimeout promise
     // Called when the computation times out.
-    get onTimeout(): FailCallback<Timeout<T>> | undefined {
+    get onTimeout(): FailCallback<TimeoutException<T>> | undefined {
         // null implies this handler is now irrelevant.
         if (this.#onTimeout === null) {
             return undefined;
@@ -122,16 +122,16 @@ class FutureState<T> {
         return this.#onTimeout;
     }
 
-    set onTimeout(onTimeout: FailCallback<Timeout<T>> | null | undefined) {
+    set onTimeout(onTimeout: FailCallback<TimeoutException<T>> | null | undefined) {
         this.#onTimeout = onTimeout;
     }
 
     // The Promise that handles OnCancel handlers.
-    #onCancelPromise?: Promise<Cancelled<T>>;
-    #onCancel?: FailCallback<Cancelled<T>> | null;
+    #onCancelPromise?: Promise<CancelledException<T>>;
+    #onCancel?: FailCallback<CancelledException<T>> | null;
     #ensureCancelPromise() {
         if (!this.#onCancelPromise) {
-            this.#onCancelPromise = new Promise<Cancelled<T>>(
+            this.#onCancelPromise = new Promise<CancelledException<T>>(
                 (resolve, reject) => (this.#onCancel = resolve)
             );
         }
@@ -144,7 +144,7 @@ class FutureState<T> {
 
     // The fulfilled handler for the OnCancel promise
     // Called when the computation is cancelled.
-    get onCancel(): FailCallback<Cancelled<T>> | undefined {
+    get onCancel(): FailCallback<CancelledException<T>> | undefined {
         // null implies this handler is now irrelevant.
         if (this.#onCancel === null) {
             return undefined;
@@ -153,7 +153,7 @@ class FutureState<T> {
         return this.#onCancel;
     }
 
-    set onCancel(onCancel: FailCallback<Cancelled<T>> | undefined | null) {
+    set onCancel(onCancel: FailCallback<CancelledException<T>> | undefined | null) {
         this.#onCancel = onCancel;
     }
 
@@ -276,9 +276,9 @@ export class Future<T> {
             .then(
                 (v: T|undefined) => this.#resolved(State.FULFILLED, undefined as any as Handler<T|undefined>, v, null),
                 (e) =>
-                    Throw(e instanceof Timeout<T>
+                    Throw(e instanceof TimeoutException<T>
                             ? this.#resolved(State.TIMEOUT, this.#s.onTimeout, e, e)
-                            : e instanceof Cancelled<T>
+                            : e instanceof CancelledException<T>
                                 ? this.#resolved(State.CANCELLED, this.#s.onCancel!, e, e)
                                 : this.#resolved(State.REJECTED, null , e, e))
             );
@@ -397,7 +397,7 @@ export class Future<T> {
     /**
      * Cancel a pending or started {@link Future} computation, by setting the {@link #state}
      * to {@link #CANCELLED}, and calling the {@link #onCancel} handlers, if any.
-     * The {@link Future} is rejected with a {@link Cancelled} exception.
+     * The {@link Future} is rejected with a {@link CancelledException} exception.
      *
      * Cancellation-aware computations should check the {@link #isCancelled} proprety,
      * or use the {@link #check} method, to terminate early.
@@ -407,11 +407,11 @@ export class Future<T> {
      *
      * ![State Diagram for cancel()](../assets/cancel.svg)
      *
-     * @param msg A custom message to be included in the {@link Cancelled} exception.
+     * @param msg A custom message to be included in the {@link CancelledException} exception.
      * @returns this {@link Future} instance.
      */
-    cancel(msg : string | Cancelled<T> = "Cancelled") {
-        let cancel = typeof msg === 'string' ? new Cancelled(this, msg ?? 'Cancelled', this.#s.startTime) : msg;
+    cancel(msg : string | CancelledException<T> = "Cancelled") {
+        let cancel = typeof msg === 'string' ? new CancelledException(this, msg ?? 'Cancelled', this.#s.startTime) : msg;
         this.#resolved(
             State.CANCELLED,
             this.#s.onCancel,
@@ -427,7 +427,7 @@ export class Future<T> {
      * @param handler
      * @returns this {@link Future} instance.
      */
-    onCancel(handler: FailCallback<Cancelled<T>>) {
+    onCancel(handler: FailCallback<CancelledException<T>>) {
         this.#s.onCancelPromise?.catch(handler);
         return this;
     }
@@ -436,12 +436,12 @@ export class Future<T> {
      * Register a _handler_ to call when the {@link Future} times out.
      *
      * Futures constructed with {@link #timeout} or {@link #timeoutAfter}
-     * will be rejected with a {@link Timeout} exception. This handler
+     * will be rejected with a {@link TimeoutException} exception. This handler
      * is called only on actual timeout.
      *
      * @param handler
      */
-    onTimeout(handler: FailCallback<Timeout<T>>) {
+    onTimeout(handler: FailCallback<TimeoutException<T>>) {
         this.#s.onTimeoutPromise.catch(handler);
         return this;
     }
@@ -509,7 +509,7 @@ export class Future<T> {
      * ![State diagram for Future.timeoutFromNow](../assets/timeoutFromNow.svg)
      *
      * @param timeout the timeout in milliseconds.
-     * @param msg An optional message to be used in the {@link Timeout} exception.
+     * @param msg An optional message to be used in the {@link TimeoutException} exception.
      * @returns the timed {@link Future}
      */
     static timeoutFromNow<T>(timeout: Millis, msg = "Timeout") {
@@ -521,8 +521,8 @@ export class Future<T> {
                 const c = Promise.resolve(computation()).then(
                     (v) => ((future.#s.onTimeout = null), v)
                 );
-                const p = new Promise<Timeout<T>>((resolve, reject) =>
-                    setTimeout(() => reject(new Timeout(future, msg, Date.now())), timeout)
+                const p = new Promise<TimeoutException<T>>((resolve, reject) =>
+                    setTimeout(() => reject(new TimeoutException(future, msg, Date.now())), timeout)
                 ).catch(e => (future.#s.onTimeout?.(e), Throw(e)));
                 return await Promise.race([c, p]) as T;
             });
@@ -537,7 +537,7 @@ export class Future<T> {
      * ![State diagram for Future.timeout](../assets/timeout.svg)
      *
      * @param timeout the timeout in milliseconds.
-     * @param msg  An optional message to be used in the {@link Timeout} exception.
+     * @param msg  An optional message to be used in the {@link TimeoutException} exception.
      * @returns  the timed {@link Future}.
      */
     static timeout<T>(timeout: Millis, msg: string = "Timeout") {
@@ -547,8 +547,8 @@ export class Future<T> {
             const future: Future<T> = new Future<T>(async (): Promise<T> => {
                 // Start the timer when the Future executes.
                 const start = Date.now();
-                const p = new Promise<Timeout<T>>((resolve, reject) =>
-                    setTimeout(() => resolve(new Timeout<T>(future, tmsg, start)), timeout)
+                const p = new Promise<TimeoutException<T>>((resolve, reject) =>
+                    setTimeout(() => resolve(new TimeoutException<T>(future, tmsg, start)), timeout)
                 ).then((e) => (future.#s.onTimeout?.(e), Throw(e)));
                 const c: Promise<T|undefined> = Promise.resolve(computation()).then(
                     (v) => ((future.#s.onTimeout = null), v)
@@ -597,10 +597,10 @@ export class Future<T> {
      *
      * ![State diagram for Future.cancelled](../assets/cancelled.svg)
      *
-     * @param c A {@link Cancelled} exception to be used, or a msg to be used to create one.
+     * @param c A {@link CancelledException} exception to be used, or a msg to be used to create one.
      * @returns
      */
-    static cancelled<T>(c: Cancelled<T> | string = 'Cancelled'): Future<T> {
+    static cancelled<T>(c: CancelledException<T> | string = 'Cancelled'): Future<T> {
         return new Future<T>(() => Future.never<T>()).cancel(c ?? 'Cancelled');
     }
 
@@ -699,18 +699,18 @@ export class FutureException<T> extends Error {
 }
 
 /**
- * A {@link Timeout} is an exception that is thrown when a {@link Future} times out.
+ * A {@link TimeoutException} is an exception that is thrown when a {@link Future} times out.
  */
-export class Timeout<T> extends FutureException<T> {
+export class TimeoutException<T> extends FutureException<T> {
     constructor(future: Future<T>, msg = "Timeout", start?: UnixTime , end: UnixTime = Date.now()) {
         super(future, msg ?? 'Timeout', start, end);
     }
 }
 
 /**
- * A {@link Cancelled} is an exception that is thrown when a {@link Future} is cancelled.
+ * A {@link CancelledException} is an exception that is thrown when a {@link Future} is cancelled.
  */
-export class Cancelled<T> extends FutureException<T> {
+export class CancelledException<T> extends FutureException<T> {
     constructor(future: Future<T>, msg = "Cancelled", start?: UnixTime, end: UnixTime = Date.now()) {
         super(future, msg ?? 'Cancelled', start, end);
     }
