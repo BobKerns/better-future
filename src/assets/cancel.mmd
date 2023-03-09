@@ -2,23 +2,51 @@ stateDiagram-v2
     direction LR
 
     [*] --> Pending
-    Pending --> Running : .then()
-    Pending --> Running : .start()
-    Pending --> Cancelled : cancel
-    Running --> Cancelled : cancel
+    Pending--> Running : .then()
+    Pending--> Running : .start()
+    Pending--> Cancelled : [cancel]
+    Running --> Cancelled : [cancel]
     Cancelled --> Rejected
 
     state Pending {
       [*] --> state=PENDING
-      state=PENDING --> [*]
+      state=PENDING --> Wait_pending
+      Wait_pending --> [*] : .then()
+      Wait_pending --> [*] : .start()
+      Wait_pending --> [*] : [cancel]
+      Wait_pending : Wait
     }
 
-    state Running {
-      [*] --> state=RUNNING
-      state=RUNNING --> NotifyStarted
-      NotifyStarted --> [*]
+state Running {
+      state if_pause <<choice>>
+
+      [*] --> NotifyStarted
+      NotifyStarted --> if_pause
+      if_pause --> Run : pause = 0
+      if_pause --> Paused : pause > 0
+      Run --> Paused : pause
+      Paused --> Run : resume
+      Run --> [*] : resolved
+      Paused --> [*] : resolved
+      Paused --> if_pause : not resolved
       NotifyStarted : Notify onStart
+
+      state Run {
+        [*] --> state=RUNNING
+        state=RUNNING --> Execute
+        Execute --> [*] : rejected
+        Execute --> [*] : fulfilled
+        Execute : Execute computation
+      }
+
+      state Paused {
+        [*] --> state=PAUSED
+        state=PAUSED --> Wait
+        Wait --> [*] : pause = 0
+        Wait --> [*] : resolved
+      }
     }
+
     state Rejected {
       [*] --> NotifyRejected
       NotifyRejected --> [*]
