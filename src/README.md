@@ -12,6 +12,7 @@ A {@link Future} can be in one of these states:
 * {@link #PENDING}: The initial state. The computation has not yet been started.
 * {@link #RUNNING}: The computation has been started, but has neither returned nor
   thrown an exception. This corresponds to the _Pending_ state in a `Promise`.
+* {@link #PAUSED}: A pause in the computation has been requested.
 * {@link #FULFILLED} The computation has returned a value.
 * {@link #REJECTED}: The computation has thrown an exception or returned a rejected
   `Promise`.
@@ -20,6 +21,6 @@ A {@link Future} can be in one of these states:
 * {@link #TIMEOUT}: If a {@link Future} times out (see {@link #timeout}, it will be in
   this state until all {@link #onTimeout} handlers have been run.
 
-![diag-1](assets/basic-states.svg)
+![diag-1](images/basic-states.svg)
 
 `.catch`(), `.finally`(), and `.when`() do not result in state changes.

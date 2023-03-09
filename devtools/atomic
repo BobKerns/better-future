@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# This script runs a set of commands and collects the output & writes it atomically
+# to help avoid interleaving problems with parallel builds.
+
+# Usage: atomic.sh <commandword+>
+
+dir="$(dirname "$0")"
+export PATH="$dir:$PATH"
+
+echo "$("$@" 2>&1)"

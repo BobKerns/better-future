@@ -196,7 +196,7 @@ class FutureState<T> {
  * The following diagram shows the basic states of a {@link Future} (excluding timeouts), which
  * are covered in more detail later.
  *
- * ![Diagram of basic states](../assets/basic-states.svg)
+ * ![Diagram of basic states](../images/basic-states.svg)
  *
  * Timeouts are layered on top of the basic {@link Future} states above. The exact diagram
  * depends on whether {@link #timeout} or {@link #timeoutAfter} is used.
@@ -405,7 +405,7 @@ export class Future<T> {
      * If the state is not {@link #PENDING} or {@link #RUNNING}, this method
      * does nothing.
      *
-     * ![State Diagram for cancel()](../assets/cancel.svg)
+     * ![State Diagram for cancel()](../images/cancel.svg)
      *
      * @param msg A custom message to be included in the {@link CancelledException} exception.
      * @returns this {@link Future} instance.
@@ -490,7 +490,7 @@ export class Future<T> {
      * Delay injects a delay into the {@link #RUNNING} state, so the computation
      * will not start until the delay has elapsed.
      *
-     * ![State diagram for Future.delay](../assets/delay.svg)
+     * ![State diagram for Future.delay](../images/delay.svg)
      *
      * @param delay the delay in milliseconds.
      * @returns the delaed {@link Future}.
@@ -506,7 +506,7 @@ export class Future<T> {
      * Create a {@link Future} that will time out _timeout_ milliseconds after
      * the computation is started.
      *
-     * ![State diagram for Future.timeoutFromNow](../assets/timeoutFromNow.svg)
+     * ![State diagram for Future.timeoutFromNow](../../images/timeoutFromNow.svg)
      *
      * @param timeout the timeout in milliseconds.
      * @param msg An optional message to be used in the {@link TimeoutException} exception.
@@ -534,7 +534,7 @@ export class Future<T> {
      * Create a {@link Future} that will time out _timeout_ milliseconds after creation,
      * regardless of when or if the result is requested.
      *
-     * ![State diagram for Future.timeout](../assets/timeout.svg)
+     * ![State diagram for Future.timeout](../../images/timeout.svg)
      *
      * @param timeout the timeout in milliseconds.
      * @param msg  An optional message to be used in the {@link TimeoutException} exception.
@@ -565,7 +565,7 @@ export class Future<T> {
      * This is useful in testing or when a resolved promise is needed that
      * also is expected to be a {@link Future}.
      *
-     * ![State diagram for Future.resolve](../assets/resolve.svg)
+     * ![State diagram for Future.resolve](../../images/resolve.svg)
      *
      * @param v A value or a Promise-like container for a value.
      * @returns a {@link Future} pre-resolved to that value.
@@ -580,7 +580,7 @@ export class Future<T> {
      * This is useful in testing or when a resolved promise is needed that
      * also is expected to be a {@link Future}.
      *
-     * ![State diagram for Future.reject](../assets/reject.svg)
+     * ![State diagram for Future.reject](../../images/reject.svg)
      *
      * @param e An exception or a Promise-like container for an exception.
      * @returns a {@link Future} pre-rejected with that exception.
@@ -595,7 +595,7 @@ export class Future<T> {
      * This is useful in testing or when a resolved promise is needed that
      * also is expected to be a {@link Future}.
      *
-     * ![State diagram for Future.cancelled](../assets/cancelled.svg)
+     * ![State diagram for Future.cancelled](../../images/cancelled.svg)
      *
      * @param c A {@link CancelledException} exception to be used, or a msg to be used to create one.
      * @returns
@@ -611,7 +611,7 @@ export class Future<T> {
      * It can also be used with {@link #timeout} or {@link #timeoutFromNow}
      * to create a fixed timeout.
      *
-     * ![State diagram for Future.never](../assets/never.svg)
+     * ![State diagram for Future.never](../../images/never.svg)
      *
      * @returns a {@link Future} that will never complete.
      */

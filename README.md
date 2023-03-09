@@ -19,6 +19,7 @@ A [`Future`](api/classes/Future.html) can be in one of these states:
   The computation has been started, but has neither returned nor
   thrown an exception. This corresponds to the _Pending_ state in a
   [`Promise`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise).
+* [`PAUSED`](api/enums/State.html#PAUSED): A pause in execution has been requested.
 * [`FULFILLED`](api/enums/State.html#FULFILLED)
   The computation has returned a value.
 * [`REJECTED`](api/enums/State.html#REJECTED):
@@ -37,7 +38,7 @@ A [`Future`](api/classes/Future.html) can be in one of these states:
 Timeouts are layered on top of basic [`Future`](api/classes/Future.html)
 states. The exact state diagram depends on whether [`Future.timeout`](api/classes/Future.html#timeout) or [`Future.timeoutAfter`](api/classes/Future.html#timeoutAfter)is used.
 
-![State diagram of basic Future](assets/basic-states.svg)
+![State diagram of basic Future](images/basic-states.svg)
 
 [`.catch`()](api/classes/Future.html#catch),
 [`.finally`(](api/classes/Future.html#finallu)),
@@ -113,7 +114,7 @@ Cancelling a `Future` while the computation is running depends on the computatio
 check _future_.`isCancelled`() to actually halt execution, but the `Future`
 will be cancelled regardless.
 
-![State Diagram for cancelling](assets/cancel.svg)
+![State Diagram for cancelling](images/cancel.svg)
 
 ### _future_.`isCancelled`()
 
@@ -155,7 +156,7 @@ To immediately start the delay countdown:
 Future.delay(myComputation).start()
 ```
 
-![State Diagram for delay](assets/delay.svg)
+![State Diagram for delay](images/delay.svg)
 
 
 ### `Future`.`timeout` (_ms_) (_computation_)
@@ -164,7 +165,7 @@ Returns a function that when applied to a computation, will return a
 `Future` that will time out that computation _ms_ milliseconds after
 it is started.
 
-![State diagram with timeout](assets/timeout.svg)
+![State diagram with timeout](images/timeout.svg)
 
 ### `Future`.`timeoutFromNow` (_ms_) (_computation_)
 
@@ -172,27 +173,27 @@ Returns a function that when applied to a computation, will return a
 `Future` that will time out that computation
 _ms_ milliseconds from when when it enters the _Pending_ state.
 
-![State Diagram for Future.timeoutFromNow](assets/timeoutFromNow.svg)
+![State Diagram for Future.timeoutFromNow](images/timeoutFromNow.svg)
 
 ### `Future`.`resolve`(_value_)
 
 Create a `Future` that is pre-resolved to the specified value. Useful for testing
 and for places that expect a full `Future` but you need to supply a resolved value.
 
-![State Diagram for Future.resolve](assets/resolve.svg)
+![State Diagram for Future.resolve](images/resolve.svg)
 
 ### `Future`.`reject`(_error_)
 
 Create a `Future` that is pre-rejected with the specified value. Useful fo resting
 and for places that expect a full `Future` but you need to supply a rejected value.
 
-![State Diagram for Future.reject](assets/reject.svg)
+![State Diagram for Future.reject](images/reject.svg)
 
 ### `Future`.`cancelled`(_msg_ = `Cancelled`)
 
 Return a pre-cancelled `Future`. Useful in testing.
 
-![State Diagram for Future.cancelled](assets/cancelled.svg)
+![State Diagram for Future.cancelled](images/cancelled.svg)
 
 ### `Future`.`never`()
 
