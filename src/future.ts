@@ -186,7 +186,7 @@ class FutureState<T> {
  * * {@link #FULFILLED} The computation has returned a value.
  * * {@link #REJECTED}: The computation has thrown an exception or returned a rejected
  *   [`Promise`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise).
- * * {@link #CANCELLED}: After being cancelled, the `{@link Future} will be in this
+ * * {@link #CANCELLED}: After being cancelled, the {@link Future} will be in this
  *   state until all {@link #onCancel} handlers have been called, after which it
  *   transitions to {@link #REJECTED}. {@link #state} will remain at {@link #CANCELLED}
  *   to denote why it was rejected.

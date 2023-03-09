@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# This script is used to convert markdown files to html
+# and mermaid files to svg. It can be called with chokidar
+# for incremental compilation.
+
+convert="$0"
+action="$1"
+path="$2"
+outbase="${3:-build/docs}"
+
+export PATH="node_modules/.bin:$PATH"
+
+outpath() {
+    local path="$1"
+    case "$path" in
+        README.md)
+            echo "${outbase}/$(dirname "${path}")/index.html"
+            ;;
+        *.md)
+            echo "${outbase}/$(basename "${path}" .md).html"
+            ;;
+        *.mmd)
+            echo "${outbase}/images/$(basename "${path}" .mmd).svg"
+            ;;
+    esac
+}
+
+outfile="$(outpath "$path")"
+
+case "$action" in
+    outfile)
+        echo "$outfile"
+        ;;
+    check)
+        # Check if the file needs to be converted or removed.
+        if [ -f "$path" ]; then
+            if [ ! -f "$outfile" -o "$path" -nt "$outfile" ]; then
+                "$convert" change "$path" "$outbase"
+            fi
+        elif [ -f "$outfile" ]; then
+            "$convert" unlink "$path" "$outbase"
+        fi
+        ;;
+    add|change)
+        echo "Converting $path"
+        mkdir -p "$(dirname "$outfile")"
+        case "$path" in
+            README.md)
+                marked -o "$outfile" -i "$path" --gfm --breaks
+                ;;
+            *.md)
+                marked -o "$outfile" -i "$path" --gfm --breaks
+                ;;
+            *.mmd)
+                mmdc -i "$path" -o "$outfile" | grep -v 'Generating single mermaid chart'
+                ;;
+        esac
+        ;;
+    unlink)
+        echo "Removing $path output"
+        case "$path" in
+            README.md)
+                rm -f "$outfile"
+                ;;
+            *.md)
+                rm -f "$outfile"
+                ;;
+            *.mmd)
+                rm -f "$outfile"
+                ;;
+        esac
+        exit 0
+        ;;
+esac
