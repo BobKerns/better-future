@@ -3,12 +3,33 @@
  * Copyright 2023 by Bob Kerns. Licensed under MIT license.
  */
 
+
+export type ComputationSimple<T> =
+    ((this: Future<T>) => T | PromiseLike<T>)
+    | (() => T | PromiseLike<T>);
+
+export type ComputationPromiselike<T> =
+    (
+        resolve: (v: T | PromiseLike<T>) => void,
+        reject: (e?: any) => void
+     ) => void;
+
 /**
  * A computation to be performed in the future.
  */
-export type Computation<T> = (computation?: Future<T>) => T|PromiseLike<T | undefined> | undefined;
+export type Computation<T> = ComputationSimple<T> | ComputationPromiselike<T>;
 
-/*
+const isSimpleComputation = <T>(c: Computation<T>): c is ComputationSimple<T> =>
+    c.length === 0;
+
+
+const simple = <T>(f: Computation<T>): ComputationSimple<T>  =>
+        isSimpleComputation(f)
+        ? f
+        : () => new Promise((accept, reject) =>
+             f(accept, reject));
+
+/**
  * Perform an additional step in a {@link Future} lifecycle.
  */
 export type Continuation<T, R> = (computation?: Future<T>) => R | PromiseLike<R>;
@@ -137,7 +158,7 @@ export const enum State {
  */
 class FutureState<T> {
     // The computation to be performed, or null if it is already started or no longer eligible.
-    computation?: Computation<T> | null;
+    computation?: ComputationSimple<T> | null;
     // The Promise that handles OnStart handlers.
     #onStartPromise?: Promise<UnixTime>;
     #onStart?: StartCallback | null;
@@ -359,18 +380,23 @@ export class Future<T> {
             this.#promise = o.#promise;
         } else {
             this.#s = new FutureState();
-            this.#promise = new Promise<T|undefined>((resolve, reject) => {
+            this.#promise = new Promise<T>((resolve, reject) => {
                 // Our internal computation wraps the supplied one to handle
                 //
-                this.#s.computation = (): T | PromiseLike<T|undefined> | undefined => {
+                this.#s.computation = (): T | PromiseLike<T> => {
                     this.#s.computation = null;
                     this.#s.state = State.RUNNING;
                     this.#s.startTime = Date.now();
                     this.#s.onStart?.(this.#s.startTime);
                     try {
-                        const v = computation(this);
-                        resolve(v);
-                        return v;
+                        if (isSimpleComputation(computation)) {
+                            const v = computation.call(this );
+                            resolve(v);
+                            return v;
+                        } else {
+                            computation(resolve, reject);
+                            return undefined as T;
+                        }
                     } catch (e: unknown) {
                         // Not if this is already resolved.
                         if (this.#s.state === State.RUNNING) {
@@ -430,7 +456,7 @@ export class Future<T> {
      * @returns the new {@link Future} instance.
      */
     then<R,E>(onFulfilled: OnFulfilled<T,R>, onRejected: OnRejected<E>): Future<R|E> {
-        this.#s.computation?.();
+        this.#s.computation?.call(this);
         const next = new Future<R|E>(this as any as Computation<R|E>);
         next.#promise = this.#promise.then(onFulfilled, onRejected);
         return next;
@@ -499,7 +525,7 @@ export class Future<T> {
      * @returns this {@link Future} instance.
      */
     start() {
-        this.#s.computation?.();
+        this.#s.computation?.call(this);
         return this;
     }
 
@@ -604,10 +630,12 @@ export class Future<T> {
      * @param delay the delay in milliseconds.
      * @returns the delaed {@link Future}.
      */
-    static delay<T>(delay: Millis): (a: Computation<T>) => Future<T> {
-        return (computation: Computation<T>) => {
+    static delay(delay: Millis): <T>(a: Computation<T>) => Future<T> {
+        return <T>(computation: Computation<T>) => {
             const p = new Promise((resolve, reject) => setTimeout(resolve, delay));
-            return new Future<T>(() => p.then<T|undefined>(() => computation()));
+            const f: ComputationSimple<T> = simple(computation);
+            const future: Future<T> = new Future<T>(() => p.then(() => f.call(future)));
+            return future;
         };
     }
 
@@ -621,13 +649,13 @@ export class Future<T> {
      * @param msg An optional message to be used in the {@link TimeoutException} exception.
      * @returns the timed {@link Future}
      */
-    static timeoutFromNow<T>(timeout: Millis, msg = "Timeout") {
+    static timeoutFromNow(timeout: Millis, msg = "Timeout") {
         const msg_dflt = msg;
-        return (computation: Computation<T|undefined>, msg: string = msg_dflt) => {
+        return <T>(computation: Computation<T>, msg: string = msg_dflt) => {
             // Start the timer now
             const start = Date.now();
             const future: Future<T> = new Future<T>(async (): Promise<T> => {
-                const c = Promise.resolve(computation()).then(
+                const c = Promise.resolve<T>(simple(computation).call(future)).then(
                     (v) => ((future.#s.onTimeout = null), v)
                 );
                 const p = new Promise<TimeoutException<T>>((resolve, reject) =>
@@ -649,9 +677,9 @@ export class Future<T> {
      * @param msg  An optional message to be used in the {@link TimeoutException} exception.
      * @returns  the timed {@link Future}.
      */
-    static timeout<T>(timeout: Millis, msg: string = "Timeout") {
+    static timeout(timeout: Millis, msg: string = "Timeout") {
         const msg_dflt = msg;
-        return (computation: Computation<T>, msg: string = msg_dflt) => {
+        return <T>(computation: Computation<T>, msg: string = msg_dflt) => {
             const tmsg = msg ?? msg_dflt;
             const future: Future<T> = new Future<T>(async (): Promise<T> => {
                 // Start the timer when the Future executes.
@@ -659,7 +687,8 @@ export class Future<T> {
                 const p = new Promise<TimeoutException<T>>((resolve, reject) =>
                     setTimeout(() => resolve(new TimeoutException<T>(future, tmsg, start)), timeout)
                 ).then((e) => (future.#s.onTimeout?.(e), Throw(e)));
-                const c: Promise<T|undefined> = Promise.resolve(computation()).then(
+                const f = simple(computation);
+                const c: Promise<T> = Promise.resolve(f.call(future)).then(
                     (v) => ((future.#s.onTimeout = null), v)
                 );
                 return await Promise.race([p, c]) as T;
