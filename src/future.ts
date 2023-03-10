@@ -365,12 +365,48 @@ export class Future<T> {
 
     /**
      * Takes a computation to be performed in the future. The _comutation_ is
-     * a function that will receive one argument (which it may ignore), the
-     * {@link Future} instance itself. The computation may return a value, which is
-     * then received by the caller of the {@link Future} instance via the {@link #then}
-     * or {@link #catch} methods. The computation may also return a `Promise`,
-     * whose value will be used in the same way.
+     * either:
+     * * a function of 0 arguments that will receive  the
+     *   {@link Future} instance itself as its implicit `this` parameter. The computation may return a value, which is
+     *   then received by the caller of the {@link Future} instance via the {@link #then}
+     *   or {@link #catch} methods. The computation may also return a `Promise`,
+     *   whose value will be used in the same way.
+     * * a function of 2 arguments, the first of which is a {@link ResolveCallback} and the second of which is a
+     *   {@link FailCallback}. The computation may call the {@link ResolveCallback} to
+     *   resolve the {@link Future} with a value, or the {@link FailCallback} to reject it
+     *   with an exception. The computation may also return a `Promise`, whose value will
+     *   be used in the same way.
+     * 
+     * 
+     * The second option is compatible with `Promise`'s constructor, and can be used
+     * in the same way. For example:
+     * 
+     * ```typescript
+     * function example(arg: any) {
+     *   return new Future((resolve, reject) => {
+     *     if (typeof arg === 'string') {
+     *       resolve(arg);
+     *    } else {
+     *      reject(new Error('Not a string'));
+     *    }
+     *  });
+     * }
+     * ```
      *
+     * vs
+     * 
+     * ```typescript
+     * function example(arg: any) {
+     *   return new Future(() => {
+     *     if (typeof arg === 'string') {
+     *       return arg;
+     *     } else {
+     *       throw new Error('Not a string');
+     *     }
+     *   });
+     * }
+     * ```
+     * 
      * @param computation
      */
     constructor(computation: Computation<T>)  {
