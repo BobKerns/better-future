@@ -9,7 +9,9 @@
  * @module Index
  */
 
-export {Future, TimeoutException, CancelledException, FutureException, Throw} from "./future";
+export {Future} from "./future";
+
+export {TimeoutException, CancelledException, FutureException, FinishedException, Throw} from "./utils";
 
 export {State} from "./state";
 

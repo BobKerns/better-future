@@ -35,6 +35,16 @@ export class FutureException<T> extends Error {
 }
 
 /**
+ * A {@link FinishedException} is an exception that is thrown when a {@link Future} is finished
+ * and a cancellation-aware computation should have any remaining activity aborted.
+ */
+export class FinishedException<T> extends FutureException<T> {
+    constructor(future: Future<T>,  start?: UnixTime, end: UnixTime = Date.now()) {
+        super(future, "The computation is complete", start, end);
+    }
+}
+
+/**
  * A {@link TimeoutException} is an exception that is thrown when a {@link Future} times out.
  */
 export class TimeoutException<T> extends FutureException<T> {
