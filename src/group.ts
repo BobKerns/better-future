@@ -130,8 +130,8 @@ export class TaskGroup<RT extends TaskGroupResultType, T> extends Future<TaskGro
     }
 
     add<X>(task: PromiseLike<X>, type: TaskType.BACKGROUND|TaskType.DAEMON): this;
-    add(task: PromiseLike<TaskGroupResult<RT, T>>, type: TaskType.NORMAL): this;
-    add(task: PromiseLike<any>, type: TaskType): this {
+    add(task: PromiseLike<TaskGroupResult<RT, T>>, type?: TaskType.NORMAL): this;
+    add(task: PromiseLike<any>, type: TaskType = TaskType.NORMAL): this {
         const f = Future.resolve(task);
         switch (type) {
             case TaskType.BACKGROUND:
