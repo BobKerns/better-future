@@ -3,153 +3,26 @@
  * Copyright 2023 by Bob Kerns. Licensed under MIT license.
  */
 
+import type {
+    ComputationSimple, Computation, Continuation,
+    FailCallback, Handler, Millis,
+    OnFinally, OnFulfilled, OnRejected,
+    OnStart, StartCallback,
+    UnixTime
+    } from './types';
 
-export type ComputationSimple<T> =
-    ((this: Future<T>) => T | PromiseLike<T>)
-    | (() => T | PromiseLike<T>);
-
-export type ComputationPromiselike<T> =
-    (
-        resolve: (v: T | PromiseLike<T>) => void,
-        reject: (e?: any) => void
-     ) => void;
-
-/**
- * A computation to be performed in the future.
- */
-export type Computation<T> = ComputationSimple<T> | ComputationPromiselike<T>;
+import {State} from './state';
 
 const isSimpleComputation = <T>(c: Computation<T>): c is ComputationSimple<T> =>
     c.length === 0;
 
 
-const simple = <T>(f: Computation<T>): ComputationSimple<T>  =>
-        isSimpleComputation(f)
+const simple = <T>(f: Computation<T>): ComputationSimple<T> =>
+    isSimpleComputation(f)
         ? f
         : () => new Promise((accept, reject) =>
-             f(accept, reject));
+            f(accept, reject));
 
-/**
- * Perform an additional step in a {@link Future} lifecycle.
- */
-export type Continuation<T, R> = (computation?: Future<T>) => R | PromiseLike<R>;
-/**
- * A handler for a value produced by a computation.
- */
-export type Handler<T> = (a: T | PromiseLike<T>) => void;
-
-/**
- * A function suitablefor passing to {@link Future#then} or {@link Future#when},
- * to be notified of fulfillment.
- */
-export type OnFulfilled<T,R> = ((a: T) => R | PromiseLike<R>) | null | undefined;
-
-/**
- * A function suitable for passing to {@link Future#catch} or the second argument to
- * {@link Future#then} or {@link Future#when}, to be notified of rejections.
- */
-export type OnRejected<R> = ((a: any) => R | PromiseLike<R>) | null | undefined;
-
-/**
- * A function suitable for passing to {@link Future#finally}, to be notified of
- * resolution (fullfillment or rejection).
- */
-export type OnFinally = () => void;
-
-/**
- * A function suitable for passing to {@link Future#onStart}, to be notified when
- * the computation is started. This can be for monitoring or debugging.
- *
- * ```typescript
- * const f = new Future(long_computation).onStart(() => console.log("Started"));
- * // ...
- * f.finally(() => console.log("Done"));
- * ```
- */
-export type OnStart = (time: UnixTime) => void;
-
-/**
- * Number of milliseconds since the Unix epoch.
- */
-export type UnixTime = number;
-
-/**
- * A time interval in milliseconds.
- */
-export type Millis = number;
-
-/**
- * A callback for a {@link Future} that has timed out or been cancelled.
- */
-export type FailCallback<E extends Error> = (e: E | PromiseLike<E>) => void;
-
-/**
- * A callback for when the future has been started.
- */
-export type StartCallback = (time: UnixTime) => void;
-
-/**
- * The state of a {@link Future} in its lifeccle.
- */
-export const enum State {
-    /**
-     * The computation has not yet been started.
-     */
-    PENDING = 'PENDING',
-    /**
-     * The {@link Future} was started with {@link Future.delay},
-     * has been started, but the delay has not yet expired.
-     * The computation will not be started until the delay expires.
-     */
-    DELAY = 'DELAY',
-    /**
-     * The computation is in progress.
-     * The computation may be asynchronous, and may not yet have completed.
-     * The computation may be cancelled or time out before it completes,
-     * resulting in a rejection.
-     */
-    RUNNING = 'RUNNING',
-    /**
-     * The computation has been paused. It may be resumed.
-     * The computation may be cancelled or time out before it completes,
-     * resulting in a rejection.
-     *
-     * Only _cancellation-aware_ computations can be effectively paused or
-     * cancelled.
-     * @see {@link Future#pause}
-     * @see {@link Future#resume}
-     * @see {@link Future#cancel}
-     */
-    PAUSED = 'PAUSED',
-    /**
-     * The computation has completed successfully and the result is available.
-     * via `await, {@link Future#then}, or {@link Future#when}.
-     */
-    FULFILLED = 'FULFILLED',
-    /**
-     * The computation has completed with an error, which can be handled
-     * via {@link Future#catch} or the second argument to {@link Future#then}
-     * or {@link Future#when}.
-     */
-    REJECTED = 'REJECTED',
-    /**
-     * The computation has timed out and been rejected.
-     * The computation may still be running, but the result will be ignored.
-     *
-     * @see {@link Future.timeout}
-     * @see {@link Future.timeoutFromNow}
-     * @see {@link Future#onTimeout}
-     */
-    TIMEOUT = 'TIMEOUT',
-    /**
-     * The computation has been cancelled and been rejected.
-     * The computation may still be running, but the result will be ignored.
-     *
-     * @see {@link Future#cancel}
-     * @see {@link Future#onCancel}
-     */
-    CANCELLED = 'CANCELLED'
-}
 
 /**
  * Internal shared state of a {@link Future}. This is the shared state of all
@@ -376,11 +249,11 @@ export class Future<T> {
      *   resolve the {@link Future} with a value, or the {@link FailCallback} to reject it
      *   with an exception. The computation may also return a `Promise`, whose value will
      *   be used in the same way.
-     * 
-     * 
+     *
+     *
      * The second option is compatible with `Promise`'s constructor, and can be used
      * in the same way. For example:
-     * 
+     *
      * ```typescript
      * function example(arg: any) {
      *   return new Future((resolve, reject) => {
@@ -394,7 +267,7 @@ export class Future<T> {
      * ```
      *
      * vs
-     * 
+     *
      * ```typescript
      * function example(arg: any) {
      *   return new Future(() => {
@@ -406,7 +279,7 @@ export class Future<T> {
      *   });
      * }
      * ```
-     * 
+     *
      * @param computation
      */
     constructor(computation: Computation<T>)  {
@@ -844,6 +717,8 @@ export class Future<T> {
     static any<T>(thenables: Iterable<PromiseLike<T>>): Future<T> {
         return new Future<T>(() => Promise.any(thenables));
     }
+
+
 }
 
 /**

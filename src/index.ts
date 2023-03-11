@@ -9,9 +9,13 @@
  * @module Index
  */
 
-export {Future, TimeoutException, CancelledException, FutureException, Throw, State} from "./future";
+export {Future, TimeoutException, CancelledException, FutureException, Throw} from "./future";
+
+export {State} from "./state";
 
 export type {
     Computation, Continuation, OnFinally, OnFulfilled, OnRejected, OnStart, FailCallback,
-    UnixTime, Millis
-} from './future'
+    UnixTime, Millis, TaskGroupOptions, TaskGroupResultType
+} from './types'
+
+export {TaskGroup} from './group';
