@@ -93,3 +93,26 @@ export interface TaskGroupOptions<RT extends TaskGroupResultType> {
 
     timeout?: number;
 }
+
+/**
+ * The type of task being added to a {@link TaskGroup}.
+ */
+export enum TaskType {
+    /**
+     * A normal task is one that is expected to complete normally,
+     * and whose value may contribute to the result of the group.
+     */
+    NORMAL = 'NORMAL',
+
+    /**
+     * A background task is one that is expected to complete normallly
+     * with the group, but does not contribute to the result of the group.
+     */
+    BACKGROUND = 'BACKGROUND',
+
+    /**
+     * A daemon task is one that is expected to run indefinitely, and
+     * should be cancelled when the group is finished.
+     */
+    DAEMON = 'DAEMON'
+}

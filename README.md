@@ -158,7 +158,6 @@ Future.delay(myComputation).start()
 
 ![State Diagram for delay](images/delay.svg)
 
-
 ### `Future`.`timeout` (_ms_) (_computation_)
 
 Returns a function that when applied to a computation, will return a
