@@ -16,8 +16,9 @@ export {TimeoutException, CancelledException, FutureException, FinishedException
 export {State} from "./state";
 
 export type {
-    Computation, Continuation, OnFinally, OnFulfilled, OnRejected, OnStart, FailCallback,
-    UnixTime, Millis, TaskGroupOptions, TaskGroupResultType
+    Computation, Continuation, ComputationPromiselike, ComputationSimple,
+    OnFinally, OnFulfilled, OnRejected, OnStart, FailCallback,
+    UnixTime, Millis, TaskGroupOptions, TaskGroupResultType, TaskType
 } from './types'
 
 export {TaskGroup} from './group';
