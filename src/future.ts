@@ -477,6 +477,23 @@ export class Future<T> {
     }
 
     /**
+     * Force a timeout exception. Not intended for public use, but
+     * does what you'd expect: sets the state to {@link #TIMEOUT}, and
+     * calls the {@link #onTimeout} handlers, if any.
+     *
+     * @param e a {@link TimeoutException} instance.
+     */
+    forceTimeout(e: TimeoutException<T>) {
+        this.#resolved(
+            State.TIMEOUT,
+            this.#s.onTimeout,
+            e,
+            e
+        );
+        return this;
+    }
+
+    /**
      * Register a _handler_ to call when the {@link Future} times out.
      *
      * Futures constructed with {@link #timeout} or {@link #timeoutAfter}
