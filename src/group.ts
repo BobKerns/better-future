@@ -147,13 +147,23 @@ export class TaskGroup<RT extends TaskGroupResultType, T> extends Future<TaskGro
             case State.PENDING:
             case State.RUNNING:
             case State.PAUSED:
+            case State.DELAY:
                 // not terminating yet. Just add the task.
                 break;
             case State.FULFILLED:
             case State.REJECTED:
-            case State.CANCELLED:
             case State.TIMEOUT:
-                this.catch((e: any) => (f.cancel(new CancelledException(f, `group ${this.#name} timed out`)), Throw(e)));
+                this.catch((e: any) => {
+                    f.cancel(e);
+                    throw e as TimeoutException<TaskGroupResult<RT, T>>;
+                });
+                break;
+            case State.CANCELLED:
+                this.catch((e: any) => {
+                    f.cancel(e);
+                    throw e as CancelledException<TaskGroupResult<RT,T>>;
+                    });
+                break;
         }
         return this;
     }
