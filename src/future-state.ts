@@ -4,8 +4,10 @@
  */
 
 import type { ComputationSimple, StartCallback, FailCallback, UnixTime } from "./types";
+import type { Future } from './future'
 import { State } from "./state";
-import { TimeoutException, CancelledException } from "./utils";
+import { TimeoutException, CancelledException, FinishedException } from "./utils";
+import { TaskContext } from "./task-context";
 
 
 /**
@@ -14,6 +16,17 @@ import { TimeoutException, CancelledException } from "./utils";
  * @hidden
  */
 export class FutureState<T> {
+    // The initial Future
+    #head: Future<T>;
+    #context?: TaskContext<T>;
+
+    get context(): TaskContext<T> {
+        if (!this.#context) {
+            this.#context = new TaskContext(this.#head, this);
+        }
+        return this.#context!
+    }
+
     // The computation to be performed, or null if it is already started or no longer eligible.
     computation?: ComputationSimple<T> | null;
     // The Promise that handles OnStart handlers.
@@ -123,7 +136,79 @@ export class FutureState<T> {
     // The current state of the Future
     state: State = State.PENDING;
 
+    /**
+     * Handler to resolve the {@link #pausePromise}
+     */
+    #resume?: (v: TaskContext<T>) => void;
+
+    /**
+     * The `Promise` to resolve to resume the computation.
+     */
+    #pausePromise?: Promise<TaskContext<T>>;
+
+    /**
+     * The level of pause nesting.
+     */
+    #pauseLevel: number = 0;
+
+
     // Create an initialize the shared state.
-    constructor() {
+    constructor(head: Future<T>) {
+        this.#head = head;
+    }
+
+    /**
+     * A flag indicating to timeout-aware computations that they should proceed, pause,
+     * or terminate.
+     *
+     * A `Promise` that resolves to this {@link Future} instance if the `Future` is
+     * runnable, an unresolved `Promise` if it is {@link #PAUSED}, or a rejected
+     * promise if it should terminate.
+     */
+    get runable(): Promise<TaskContext<T>> {
+        switch (this.state) {
+            case "PENDING":
+                throw new Error(
+                    " is to be used as part of a running Future computation."
+                );
+            case "RUNNING":
+                return Promise.resolve(this.context);
+            case "PAUSED":
+                return this.#pausePromise!;
+            case "TIMEOUT":
+            case "CANCELLED":
+                return Promise.reject(this.exception);
+            default:
+                return Promise.reject(new FinishedException(this.#head, this.startTime));
+        }
+    }
+
+    #setPause() {
+        this.state = State.PAUSED;
+        if (this.#pauseLevel === 1) {
+            this.#pausePromise = new Promise<TaskContext<T>>((resolve) => {
+                this.#resume = resolve;
+            });
+        }
+    }
+    pause() {
+        this.#pauseLevel++;
+        if (this.state === State.RUNNING) {
+            this.#setPause();
+        }
+    }
+
+    resume() {
+        if (this.#pauseLevel > 0) {
+            this.#pauseLevel--;
+            if (this.#pauseLevel === 0 && this.state === State.PAUSED) {
+                this.state = State.RUNNING;
+                this.#resume?.(this.context);
+            }
+        }
+    }
+
+    call(f: ComputationSimple<T>) {
+        return f.call(this.context);
     }
 }

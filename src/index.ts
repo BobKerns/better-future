@@ -11,7 +11,10 @@
 
 export {Future} from "./future";
 
-export {TimeoutException, CancelledException, FutureException, FinishedException, Throw} from "./utils";
+export {
+    TimeoutException, CancelledException, FutureException, FinishedException,
+    Throw, withThis
+} from "./utils";
 
 export {State} from "./state";
 
@@ -22,3 +25,5 @@ export type {
 } from './types'
 
 export {TaskGroup} from './group';
+
+export {TaskContext as CancelContext} from './task-context';

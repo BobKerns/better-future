@@ -11,7 +11,7 @@ import type {
     } from './types';
 import {State} from './state';
 import {FutureState} from './future-state';
-import { CancelledException,  TimeoutException, FinishedException, Throw } from './utils';
+import { CancelledException,  TimeoutException, Throw } from './utils';
 
 const isSimpleComputation = <T>(c: Computation<T>): c is ComputationSimple<T> =>
     c.length === 0;
@@ -168,7 +168,7 @@ export class Future<T> {
             this.#s = o.#s;
             this.#promise = o.#promise;
         } else {
-            this.#s = new FutureState();
+            this.#s = new FutureState(this);
             this.#promise = new Promise<T>((resolve, reject) => {
                 // Our internal computation wraps the supplied one to handle
                 //
@@ -179,7 +179,7 @@ export class Future<T> {
                     this.#s.onStart?.(this.#s.startTime);
                     try {
                         if (isSimpleComputation(computation)) {
-                            const v = computation.call(this );
+                            const v = computation.call(this.#s.context );
                             resolve(v);
                             return v;
                         } else {
@@ -230,21 +230,6 @@ export class Future<T> {
     }
 
     /**
-     * Handler to resolve the {@link #pausePromise}
-     */
-    #resume?: (v: this) => void;
-
-    /**
-     * The `Promise` to resolve to resume the computation.
-     */
-    #pausePromise?: Promise<this>;
-
-    /**
-     * The level of pause nesting.
-     */
-    #pauseLevel: number = 0;
-
-    /**
      * Starts the computation, then returns a new {@link Future}
      * that will be resolved when the computation
      * is complete, and which will resolve with the result of _onFulfilled_ being
@@ -260,7 +245,7 @@ export class Future<T> {
      * @returns the new {@link Future} instance.
      */
     then<R,E>(onFulfilled: OnFulfilled<T,R>, onRejected: OnRejected<E>): Future<R|E> {
-        this.#s.computation?.call(this);
+        this.#s.computation?.call(this.#s.context);
         const next = new Future<R|E>(this as any as Computation<R|E>);
         next.#promise = this.#promise.then(onFulfilled, onRejected);
         return next;
@@ -329,7 +314,7 @@ export class Future<T> {
      * @returns this {@link Future} instance.
      */
     start() {
-        this.#s.computation?.call(this);
+        this.#s.computation?.call(this.#s.context);
         return this;
     }
 
@@ -410,57 +395,13 @@ export class Future<T> {
         return !(this.#s.state === State.PENDING || this.#s.state === State.RUNNING);
     }
 
-
-    /**
-     * A flag indicating to timeout-aware computations that they should proceed, pause,
-     * or terminate.
-     *
-     * A `Promise` that resolves to this {@link Future} instance if the `Future` is
-     * runnable, an unresolved `Promise` if it is {@link #PAUSED}, or a rejected
-     * promise if it should terminate.
-     */
-    get runnable() {
-        switch (this.#s.state) {
-            case "PENDING":
-                throw new Error(
-                    " is to be used as part of a running Future computation."
-                );
-            case "RUNNING":
-                return Promise.resolve(this);
-            case "PAUSED":
-                return this.#pausePromise!;
-            case "TIMEOUT":
-            case "CANCELLED":
-                return Promise.reject(this.#s.exception);
-            default:
-                return Promise.reject(new FinishedException(this, this.#s.startTime));
-        }
-    }
-
-    #setPause() {
-        this.#s.state = State.PAUSED;
-        if (this.#pauseLevel === 1) {
-            this.#pausePromise = new Promise<this>((resolve) => {
-                this.#resume = resolve;
-            });
-        }
-    }
     pause() {
-        this.#pauseLevel++;
-        if (this.#s.state === State.RUNNING) {
-            this.#setPause();
-        }
-        return this;
+        this.#s.pause();
+        
     }
 
     resume() {
-        if (this.#pauseLevel > 0) {
-            this.#pauseLevel--;
-            if (this.#pauseLevel === 0 && this.#s.state === State.PAUSED) {
-                this.#s.state = State.RUNNING;
-                this.#resume?.(this);
-            }
-        }
+        this.#s.resume();
     }
 
     /**
@@ -485,7 +426,7 @@ export class Future<T> {
         return <T>(computation: Computation<T>) => {
             const p = new Promise((resolve, reject) => setTimeout(resolve, delay));
             const f: ComputationSimple<T> = simple(computation);
-            const future: Future<T> = new Future<T>(() => p.then(() => f.call(future)));
+            const future: Future<T> = new Future<T>(() => p.then(() => future.#s.call(f)));
             return future;
         };
     }
@@ -506,7 +447,7 @@ export class Future<T> {
             // Start the timer now
             const start = Date.now();
             const future: Future<T> = new Future<T>(async (): Promise<T> => {
-                const c = Promise.resolve<T>(simple(computation).call(future)).then(
+                const c = Promise.resolve<T>(future.#s.call(simple(computation))).then(
                     (v) => ((future.#s.onTimeout = null), v)
                 );
                 const p = new Promise<TimeoutException<T>>((resolve, reject) =>
@@ -539,7 +480,7 @@ export class Future<T> {
                     setTimeout(() => resolve(new TimeoutException<T>(future, tmsg, start)), timeout)
                 ).then((e) => (future.#s.onTimeout?.(e), Throw(e)));
                 const f = simple(computation);
-                const c: Promise<T> = Promise.resolve(f.call(future)).then(
+                const c: Promise<T> = Promise.resolve(future.#s.call(f)).then(
                     (v) => ((future.#s.onTimeout = null), v)
                 );
                 return await Promise.race([p, c]) as T;

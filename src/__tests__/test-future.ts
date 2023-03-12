@@ -2,7 +2,8 @@
  * Copyright 2023 by Bob Kerns. Licensed under MIT license.
  */
 
-import { Future } from "..";
+import { CancelContext, Future, withThis } from "..";
+import { FutureState } from "../future-state";
 import { MethodSpec, is, isState, isStatic, isInstance, hasTag, p_never } from "./tools";
 
 const methods: Array<MethodSpec<Future<any>, typeof Future>> = [
@@ -27,7 +28,6 @@ const methods: Array<MethodSpec<Future<any>, typeof Future>> = [
     {name: 'start', tags: ['instance'] },
     {name: 'pause', tags: ['instance'] },
     {name: 'resume', tags: ['instance'] },
-    {name: 'runnable', tags: ['field'], type: is(Promise)},
     {name: 'state', tags: ['field'], type: isState()},
     {name: 'cancel', tags: ['instance']}
 ];
@@ -72,23 +72,27 @@ describe("Basic", () => {
              // It should only be accessed from a running computation.
             test('Future.runnable invalid access', () => {
                 const f = new Future(() => 1);
+                const s = new FutureState(f);
+                const c = s.context;
                 expect((() => {
                     try {
-                        return (f.runnable, undefined);
+                        return (c.runable, undefined);
                     } catch (e) {
                         return e;
                     }
                 })()).toBeInstanceOf(Error)
             });
             test('Future.runnable runnable', async () => {
-                const f = new Future(() => 1).start();
+                let c: CancelContext<any>;
+                const f = new Future(withThis((ctx: CancelContext<any>) => (c = ctx))).start();
                 expect(f.state).toEqual('RUNNING');
-                return expect(await f.runnable).toBe(await f);
+                return expect(await c!.runable).toBe(c!);
             });
             test('Future.runnable late access', async () => {
-                const f = new Future(() => 1).start();
+                let c: CancelContext<any>;
+                const f = new Future(withThis((ctx: CancelContext<any>) => (c = ctx))).start();
                 await f;
-                return expect(f.runnable).rejects.toBeInstanceOf(Error);
+                return expect(c!.runable).rejects.toBeInstanceOf(Error);
             });
         });
 

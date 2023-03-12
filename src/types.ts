@@ -4,9 +4,10 @@
  */
 
 import type {Future} from './future';
+import type { TaskContext } from './task-context';
 
 export type ComputationSimple<T> =
-    ((this: Future<T>) => T | PromiseLike<T>)
+    ((this: TaskContext<T>) => T | PromiseLike<T>)
     | (() => T | PromiseLike<T>);
 
 export type ComputationPromiselike<T> =
