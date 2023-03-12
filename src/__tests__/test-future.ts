@@ -1,3 +1,7 @@
+/*
+ * Copyright 2023 by Bob Kerns. Licensed under MIT license.
+ */
+
 import { Future } from "../future";
 
 const never = () => new Promise(() => {})

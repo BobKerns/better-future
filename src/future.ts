@@ -395,6 +395,7 @@ export class Future<T> {
         return !(this.#s.state === State.PENDING || this.#s.state === State.RUNNING);
     }
 
+
     /**
      * An alternative for cancellation-aware computations to using {@link #isCancelled}.
      *

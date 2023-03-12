@@ -3,8 +3,8 @@
  * Copyright 2023 by Bob Kerns. Licensed under MIT license.
  */
 
-
 import type {Future} from './future';
+
 export type ComputationSimple<T> =
     ((this: Future<T>) => T | PromiseLike<T>)
     | (() => T | PromiseLike<T>);
