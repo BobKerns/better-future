@@ -3,6 +3,8 @@
  */
 
 import { Future } from "../future";
+import { State } from "../state";
+import { FinishedException } from "../utils";
 
 const never = () => new Promise(() => {})
 
@@ -15,8 +17,15 @@ type FieldName = StaticFieldName | InstanceFieldName;
 
 interface MethodSpec {
     name: FieldName;
-    tags: Array<MethodTags>
+    tags: Array<MethodTags>;
+    type?: (a: any) => boolean;
 }
+
+const is = <T>(c: new (...args: any[]) => T) => (a: any): a is T => a instanceof c;
+const isState = (...states: State[]) =>
+    states.length === 0
+    ? (v: any) => Object.values(State).includes(v)
+    : (v: any) => states.includes(v);
 
 const methods: Array<MethodSpec> = [
     {name: "delay", tags: ['static']},
@@ -40,7 +49,8 @@ const methods: Array<MethodSpec> = [
     {name: 'start', tags: ['instance'] },
     {name: 'pause', tags: ['instance'] },
     {name: 'resume', tags: ['instance'] },
-    {name: 'runnable', tags: ['field'] },
+    {name: 'runnable', tags: ['field'], type: is(Promise)},
+    {name: 'state', tags: ['field'], type: isState()},
     {name: 'cancel', tags: ['instance']}
 ];
 
@@ -63,22 +73,53 @@ describe("Basic", () => {
                         toBeInstanceOf(Function)
             ));
         describe('Instance Methods', () => {
-        const f: Future<number> = new Future(() => 1);
-        test('InstanceOfFuture', () => expect(f).toBeInstanceOf(Future));
-        test.each(methods
-            .filter(hasTag('instance'))
-            .map(m => ({name: m.name, value: f[m.name as keyof typeof f] }))
+            const f: Future<number> = new Future(() => 1);
+            test('InstanceOfFuture', () => expect(f).toBeInstanceOf(Future));
+            test.each(methods
+                .filter(hasTag('instance'))
+                .map(m => ({name: m.name, value: f[m.name as keyof typeof f] }))
+            )
+            (`Method Future.$name`, ({value}) =>
+                expect(value).toBeInstanceOf(Function));
+        });
 
-        )
-        (`Method Future.$name`, ({value}) =>
-            expect(value).toBeInstanceOf(Function));
+        describe("Instance fields", () => {
+            const f: Future<number> = new Future(() => 1).start();
+            test.each(methods
+                .filter(hasTag('field'))
+                .map(m => ({name: m.name, value: m.type?.(f[m.name as keyof typeof f] )}))
+            )
+            (`Field Future.$name`, ({value}) =>
+                expect(value).toBeTruthy());
+
+             // Future.runnable should error if accessed before start.
+             // It should only be accessed from a running computation.
+            test('Future.runnable invalid access', () => {
+                const f = new Future(() => 1);
+                expect((() => {
+                    try {
+                        return (f.runnable, undefined);
+                    } catch (e) {
+                        return e;
+                    }
+                })()).toBeInstanceOf(Error)
+            });
+            test('Future.runnable runnable', async () => {
+                const f = new Future(() => 1).start();
+                expect(f.state).toEqual('RUNNING');
+                return expect(await f.runnable).toBe(await f);
+            });
+            test('Future.runnable late access', async () => {
+                const f = new Future(() => 1).start();
+                await f;
+                return expect(f.runnable).rejects.toBeInstanceOf(Error);
+            });
         });
 
         test('Initial state', () => {
             const f = new Future(() => 1);
             expect(f.state).toBe('PENDING')
             expect(f.isCancelled).toBe(false);
-            expect(async () => await f.runnable).rejects.toThrow();
         });
 
         describe('Start'  , () => {

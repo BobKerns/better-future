@@ -8,7 +8,7 @@ import type {Future} from './future';
 /**
  * The state of a {@link Future} in its lifeccle.
  */
-export const enum State {
+export enum State {
     /**
      * The computation has not yet been started.
      */
