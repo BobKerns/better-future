@@ -10,7 +10,7 @@
   "unpkg": "lib/umd/index.js",
   "types": "lib/esm/index.d.ts",
   "scripts": {
-    "prepare": "npm run build:svg & npm run build:config & join",
+    "prepare": "npm run build:svg & npm run build:config & wait",
     "build:config": "esbuild ./config/top-jest.config.ts --bundle --format=esm --sourcemap --target=esnext --outfile=build/config/top-jest.config.js",
     "pretest": "esbuild  ./src/__tests__/*.ts --format=esm --platform=node --target=es2019 --bundle --outdir=build/src/__tests__/tests.cjs",
     "test": "jest",
