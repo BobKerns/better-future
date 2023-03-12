@@ -18,6 +18,8 @@ import { TaskContext } from "./task-context";
 export class FutureState<T> {
     // The initial Future
     #head: Future<T>;
+    fulfill?: (value: T) => void;
+    reject?: (e: any) => void;
     #context?: TaskContext<T>;
 
     get context(): TaskContext<T> {
@@ -129,8 +131,6 @@ export class FutureState<T> {
 
     //
     startTime?: UnixTime;
-    // Enables cancellation and timeout.
-    reject?: FailCallback<Error>;
     //
     exception?: Error;
     // The current state of the Future

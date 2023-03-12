@@ -2,7 +2,7 @@
  * Copyright 2023 by Bob Kerns. Licensed under MIT license.
  */
 
-import { Future, CancelContext, TimeoutException, withThis } from "..";
+import { Future, CancelContext, TimeoutException, withThis, CancelledException } from "..";
 import { p_never } from "./tools";
 
 describe("Functional", () => {
@@ -23,7 +23,6 @@ describe("Functional", () => {
     test('Initial state', () => {
         const f = new Future(() => 1);
         expect(f.state).toBe('PENDING')
-        expect(f.isCancelled).toBe(false);
     });
 
     // Test starting a simple task.
@@ -108,6 +107,15 @@ describe("Functional", () => {
                 expect(e.endTime - startTime).toBeLessThan(100);
                 expect(f.state).toBe('TIMEOUT');
             }
+        });
+    });
+
+    describe("cancel", () => {
+        test("cancelled", async () => {
+            const f = Future.cancelled();
+            expect(f.state).toBe('CANCELLED');
+            expect(f.start().state).toBe('CANCELLED');
+            await expect(f).rejects.toBeInstanceOf(CancelledException);
         });
     });
 });

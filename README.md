@@ -116,11 +116,6 @@ will be cancelled regardless.
 
 ![State Diagram for cancelling](images/cancel.svg)
 
-### _future_.`isCancelled`()
-
-Returns `true` if this `Future` has been cancelled, or a `Cancelled` exception
-is thrown by the user code.
-
 ### _future_.`onCancel`(_handler_)
 
 Registers _handler_ to be called when the `Future` is cancelled. _handler_ will receive a `Cancelled`

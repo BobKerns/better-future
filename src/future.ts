@@ -171,7 +171,8 @@ export class Future<T> {
             this.#s = new FutureState(this);
             this.#promise = new Promise<T>((resolve, reject) => {
                 // Our internal task wraps the supplied one to handle
-                //
+                this.#s.fulfill = resolve;
+                this.#s.reject = reject;
                 this.#s.task = (): T | PromiseLike<T> => {
                     this.#s.task = null;
                     this.#s.state = State.RUNNING;
@@ -323,11 +324,19 @@ export class Future<T> {
      * to {@link #CANCELLED}, and calling the {@link #onCancel} handlers, if any.
      * The {@link Future} is rejected with a {@link CancelledException} exception.
      *
-     * Cancellation-aware computations should check the {@link #isCancelled} proprety,
-     * or use the {@link #check} method, to terminate early.
+     * Cancellation-aware computations receive a {@link CancelContext} object via
+     * `this` when they are invoked. They should await on {@link CancelContext#runable}
+     * to determine if they should continue running. If the {@link Future} is cancelled,
+     * the {@link CancelContext#runable} will be rejected with
+     * a {@link CancelledException} exception.
+     * 
+     * Waiting on a {@link CancelContext#runable} also enables the
+     * {@link Future#pause}/{@link Future#resume} functionality.
      *
-     * If the state is not {@link #PENDING} or {@link #RUNNING}, this method
-     * does nothing.
+     * If the state is post-{@link #RUNNING} (e.g. {@link #REJECTED} or {@link #FULFILLED})
+     * this function does nothing.
+     * 
+     * If the {@link Future} is cancelled, the {@link #onCancel} handlers are called.
      *
      * ![State Diagram for cancel()](../images/cancel.svg)
      *
@@ -336,6 +345,7 @@ export class Future<T> {
      */
     cancel(msg : string | CancelledException<T> = "Cancelled") {
         let cancel = typeof msg === 'string' ? new CancelledException(this, msg ?? 'Cancelled', this.#s.startTime) : msg;
+        this.#s.reject!(cancel);
         this.#resolved(
             State.CANCELLED,
             this.#s.onCancel,
@@ -385,14 +395,6 @@ export class Future<T> {
     onTimeout(handler: FailCallback<TimeoutException<T>>) {
         this.#s.onTimeoutPromise.catch(handler);
         return this;
-    }
-
-    /**
-     * A flag indicating to cancellation-aware computations that they should
-     * terminate early.
-     */
-    get isCancelled() {
-        return !(this.#s.state === State.PENDING || this.#s.state === State.RUNNING);
     }
 
     pause() {
