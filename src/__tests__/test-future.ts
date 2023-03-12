@@ -6,7 +6,7 @@ import { Future } from "../future";
 
 const never = () => new Promise(() => {})
 
-type MethodTags = 'static' | 'constructor' | 'instance';
+type MethodTags = 'static' | 'constructor' | 'instance' | 'field';
 
 type StaticFieldName = Exclude<keyof typeof Future, ''>;
 type InstanceFieldName = string & Exclude<keyof Future<any>, 'prototype'>;
@@ -37,10 +37,11 @@ const methods: Array<MethodSpec> = [
     {name: 'onStart',   tags: ['instance']},
     {name: 'onCancel', tags: ['instance']},
     {name: 'onTimeout', tags: ['instance']},
-    {name: 'start', tags: ['instance']},
-    {name: 'check', tags: ['instance']},
-    {name: 'cancel', tags: ['instance']},
-    {name: 'start', tags: ['instance']}
+    {name: 'start', tags: ['instance'] },
+    {name: 'pause', tags: ['instance'] },
+    {name: 'resume', tags: ['instance'] },
+    {name: 'runnable', tags: ['field'] },
+    {name: 'cancel', tags: ['instance']}
 ];
 
 const hasTag = (tag: MethodTags) => (method: MethodSpec) => method.tags.includes(tag);
@@ -57,28 +58,19 @@ describe("Basic", () => {
             test.each(methods
                 .filter(hasTag('static'))
                 .map(method => ({name: method.name, method})))(
-                    "Future$name is a function",
+                    `Future.$name is a function`,
                     spec => expect(Future[spec.name as StaticFieldName]).
                         toBeInstanceOf(Function)
             ));
         describe('Instance Methods', () => {
         const f: Future<number> = new Future(() => 1);
-        const instanceMethods: Array<keyof typeof f> = [
-            'then',
-            'catch',
-            'finally',
-            'when',
-            'onStart',  
-            'onCancel',
-            'onTimeout',
-            'start',
-            'check',
-            'cancel',
-            'start'
-        ];
         test('InstanceOfFuture', () => expect(f).toBeInstanceOf(Future));
-        test.each((instanceMethods).map(name => ({name, value: f[name]})))
-        ("Method Future.$name", ({name, value}) =>
+        test.each(methods
+            .filter(hasTag('instance'))
+            .map(m => ({name: m.name, value: f[m.name as keyof typeof f] }))
+
+        )
+        (`Method Future.$name`, ({value}) =>
             expect(value).toBeInstanceOf(Function));
         });
 
@@ -86,7 +78,7 @@ describe("Basic", () => {
             const f = new Future(() => 1);
             expect(f.state).toBe('PENDING')
             expect(f.isCancelled).toBe(false);
-            expect(async () => f.check(() => 'OK')).rejects.toThrow();
+            expect(async () => await f.runnable).rejects.toThrow();
         });
 
         describe('Start'  , () => {
