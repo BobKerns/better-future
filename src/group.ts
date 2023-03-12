@@ -3,10 +3,10 @@
  * Copyright 2023 by Bob Kerns. Licensed under MIT license.
  */
 
-import { CancelledException, Future, FutureException, TimeoutException } from './future';
+import {Future} from './future';
 import { State } from './state';
 import { TaskGroupResultType, TaskGroupOptions, TaskType } from './types';
-import { Throw } from './utils';
+import { CancelledException, TimeoutException } from './utils';
 
 const todo = () => { throw new Error('TODO'); };
 
