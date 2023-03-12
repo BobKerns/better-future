@@ -13,8 +13,8 @@ export type InstanceFieldName<T> = string & Exclude<keyof T, 'prototype'>;
 
 export type FieldName<T, S> = StaticFieldName<T> | InstanceFieldName<S>;
 
-export interface InstanceMethodSpec<T, S> {
-    name: FieldName<T, S>;
+export interface InstanceMethodSpec<T> {
+    name: InstanceFieldName<T>;
     tags: Array<MethodTags>;
     type?: (a: any) => boolean;
 }
@@ -25,7 +25,7 @@ export interface StaticMethodSpec<S> {
     type?: (a: any) => boolean;
 }
 
-export type MethodSpec<T, S> = InstanceMethodSpec<T, S> | StaticMethodSpec<S>;
+export type MethodSpec<T, S> = InstanceMethodSpec<T> | StaticMethodSpec<S>;
 
 export const is = <T>(c: new (...args: any[]) => T) => (a: any): a is T => a instanceof c;
 export const isState = (...states: State[]) =>
@@ -36,3 +36,16 @@ export const isState = (...states: State[]) =>
 export const isStatic =
     <T, S extends Object>(method: MethodSpec<T, S>): method is StaticMethodSpec<S> =>
         method.tags.includes('static');
+
+export const isInstance =
+    <T, S extends Object>(method: MethodSpec<T, S>): method is InstanceMethodSpec<T> =>
+        method.tags.includes('instance');
+
+/**
+ * A filter on method specs based on the presence of a tag.
+ * @param tag 
+ * @returns A predicate on {@link MethodSpec}s that returns true if the spec as the given tag.
+ */
+export const hasTag = (tag: MethodTags) =>
+    <T,S>(method: MethodSpec<T,S>) =>
+        method.tags.includes(tag);

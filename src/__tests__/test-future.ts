@@ -2,8 +2,8 @@
  * Copyright 2023 by Bob Kerns. Licensed under MIT license.
  */
 
-import { Future, Computation } from "..";
-import { MethodSpec, is, isState, isStatic, MethodTags, p_never } from "./tools";
+import { Future } from "..";
+import { MethodSpec, is, isState, isStatic, isInstance, hasTag, p_never } from "./tools";
 
 const methods: Array<MethodSpec<Future<any>, typeof Future>> = [
     {name: "delay", tags: ['static']},
@@ -32,8 +32,6 @@ const methods: Array<MethodSpec<Future<any>, typeof Future>> = [
     {name: 'cancel', tags: ['instance']}
 ];
 
-const hasTag = (tag: MethodTags) => <T,S>(method: MethodSpec<T,S>) => method.tags.includes(tag);
-
 describe("Basic", () => {
     describe("API completeness", () => {
         test("Future is a function", () =>
@@ -42,20 +40,20 @@ describe("Basic", () => {
         test("Future is a constructor", () =>
                 expect(Future.prototype)
                 .toBeInstanceOf(Object));
-        describe("Static Methods", () =>
+        describe("Static Methods", () => 
             test.each(methods
-                .filter(isStatic)
-                .map(method => ({name: method.name, method})))(
-                    `Future.$name is a function`,
-                    spec => expect(Future[spec.name as keyof typeof Future<any>]).
-                        toBeInstanceOf(Function)
+                .filter(isStatic))
+            (
+                `Future.$name is a function`,
+                ({name}) => expect(Future[name]).
+                    toBeInstanceOf(Function)
             ));
         describe('Instance Methods', () => {
             const f: Future<number> = new Future(() => 1);
             test('InstanceOfFuture', () => expect(f).toBeInstanceOf(Future));
             test.each(methods
-                .filter(hasTag('instance'))
-                .map(m => ({name: m.name, value: f[m.name as keyof typeof f] }))
+                .filter(isInstance)
+                .map(m => ({name: m.name, value: f[m.name] }))
             )
             (`Method Future.$name`, ({value}) =>
                 expect(value).toBeInstanceOf(Function));
