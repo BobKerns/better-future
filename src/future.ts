@@ -230,6 +230,21 @@ export class Future<T> {
     }
 
     /**
+     * Handler to resolve the {@link #pausePromise}
+     */
+    #resume?: (v: this) => void;
+
+    /**
+     * The `Promise` to resolve to resume the computation.
+     */
+    #pausePromise?: Promise<this>;
+
+    /**
+     * The level of pause nesting.
+     */
+    #pauseLevel: number = 0;
+
+    /**
      * Starts the computation, then returns a new {@link Future}
      * that will be resolved when the computation
      * is complete, and which will resolve with the result of _onFulfilled_ being
@@ -397,25 +412,54 @@ export class Future<T> {
 
 
     /**
-     * An alternative for cancellation-aware computations to using {@link #isCancelled}.
+     * A flag indicating to timeout-aware computations that they should proceed, pause,
+     * or terminate.
      *
-     * The supplied _continuation_ is called only if the {@link Future} is in the
-     * {@link #RUNNING} state. Otherwise, an exception is thrown, so the calling
-     * computation can be terminated.
+     * A `Promise` that resolves to this {@link Future} instance if the `Future` is
+     * runnable, an unresolved `Promise` if it is {@link #PAUSED}, or a rejected
+     * promise if it should terminate.
      */
-    check<R>(continuation: Continuation<T,R>) {
+    get runnable() {
         switch (this.#s.state) {
             case "PENDING":
                 throw new Error(
-                    "Check is to be used as part of a running Future computation."
+                    " is to be used as part of a running Future computation."
                 );
             case "RUNNING":
-                return continuation(this);
+                return Promise.resolve(this);
+            case "PAUSED":
+                return this.#pausePromise!;
             case "TIMEOUT":
             case "CANCELLED":
-                throw this.#s.exception;
+                return Promise.reject(this.#s.exception);
             default:
-                throw new Error("Computation has already completed.");
+                return Promise.reject(new FinishedException(this, this.#s.startTime));
+        }
+    }
+
+    #setPause() {
+        this.#s.state = State.PAUSED;
+        if (this.#pauseLevel === 1) {
+            this.#pausePromise = new Promise<this>((resolve) => {
+                this.#resume = resolve;
+            });
+        }
+    }
+    pause() {
+        this.#pauseLevel++;
+        if (this.#s.state === State.RUNNING) {
+            this.#setPause();
+        }
+        return this;
+    }
+
+    resume() {
+        if (this.#pauseLevel > 0) {
+            this.#pauseLevel--;
+            if (this.#pauseLevel === 0 && this.#s.state === State.PAUSED) {
+                this.#s.state = State.RUNNING;
+                this.#resume?.(this);
+            }
         }
     }
 
