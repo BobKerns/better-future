@@ -2,32 +2,10 @@
  * Copyright 2023 by Bob Kerns. Licensed under MIT license.
  */
 
-import { Future } from "../future";
-import { State } from "../state";
-import { FinishedException } from "../utils";
+import { Future, Computation } from "..";
+import { MethodSpec, is, isState, isStatic, MethodTags, p_never } from "./tools";
 
-const never = () => new Promise(() => {})
-
-type MethodTags = 'static' | 'constructor' | 'instance' | 'field';
-
-type StaticFieldName = Exclude<keyof typeof Future, ''>;
-type InstanceFieldName = string & Exclude<keyof Future<any>, 'prototype'>;
-
-type FieldName = StaticFieldName | InstanceFieldName;
-
-interface MethodSpec {
-    name: FieldName;
-    tags: Array<MethodTags>;
-    type?: (a: any) => boolean;
-}
-
-const is = <T>(c: new (...args: any[]) => T) => (a: any): a is T => a instanceof c;
-const isState = (...states: State[]) =>
-    states.length === 0
-    ? (v: any) => Object.values(State).includes(v)
-    : (v: any) => states.includes(v);
-
-const methods: Array<MethodSpec> = [
+const methods: Array<MethodSpec<Future<any>, typeof Future>> = [
     {name: "delay", tags: ['static']},
     {name: "timeout", tags: ['static']},
     {name: "timeoutFromNow", tags: ['static']},
@@ -54,7 +32,7 @@ const methods: Array<MethodSpec> = [
     {name: 'cancel', tags: ['instance']}
 ];
 
-const hasTag = (tag: MethodTags) => (method: MethodSpec) => method.tags.includes(tag);
+const hasTag = (tag: MethodTags) => <T,S>(method: MethodSpec<T,S>) => method.tags.includes(tag);
 
 describe("Basic", () => {
     describe("API completeness", () => {
@@ -66,10 +44,10 @@ describe("Basic", () => {
                 .toBeInstanceOf(Object));
         describe("Static Methods", () =>
             test.each(methods
-                .filter(hasTag('static'))
+                .filter(isStatic)
                 .map(method => ({name: method.name, method})))(
                     `Future.$name is a function`,
-                    spec => expect(Future[spec.name as StaticFieldName]).
+                    spec => expect(Future[spec.name as keyof typeof Future<any>]).
                         toBeInstanceOf(Function)
             ));
         describe('Instance Methods', () => {
@@ -124,7 +102,7 @@ describe("Basic", () => {
 
         describe('Start'  , () => {
             test ("Never", () => {
-                const fNever = new Future(never);
+                const fNever = new Future(p_never);
                 expect(fNever.start().state).toBe('RUNNING');
             });
             test ("Immediate", () => {
