@@ -4,9 +4,9 @@ stateDiagram-v2
     [*] --> Pending
     Pending --> Running : .then()
     Pending --> Running : .start()
-    Running --> state=FULFILLED : computation returns
+    Running --> state=FULFILLED : task returns
     state=FULFILLED --> Fulfilled
-    Running --> state=REJECTED : computation throws
+    Running --> state=REJECTED : task throws
     state=REJECTED --> Rejected
     Pending --> Cancelled : cancel
     Running --> Cancelled : cancel

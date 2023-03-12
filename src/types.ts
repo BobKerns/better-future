@@ -6,27 +6,27 @@
 import type {Future} from './future';
 import type { TaskContext } from './task-context';
 
-export type ComputationSimple<T> =
+export type SimpleTask<T> =
     ((this: TaskContext<T>) => T | PromiseLike<T>)
     | (() => T | PromiseLike<T>);
 
-export type ComputationPromiselike<T> =
+export type PromiseLikeTask<T> =
     (
         resolve: (v: T | PromiseLike<T>) => void,
         reject: (e?: any) => void
     ) => void;
 
 /**
- * A computation to be performed in the future.
+ * A task to be performed in the future.
  */
-export type Computation<T> = ComputationSimple<T> | ComputationPromiselike<T>;
+export type Task<T> = SimpleTask<T> | PromiseLikeTask<T>;
 
 /**
  * Perform an additional step in a {@link Future} lifecycle.
  */
-export type Continuation<T, R> = (computation?: Future<T>) => R | PromiseLike<R>;
+export type Continuation<T, R> = (task?: Future<T>) => R | PromiseLike<R>;
 /**
- * A handler for a value produced by a computation.
+ * A handler for a value produced by a task.
  */
 export type Handler<T> = (a: T | PromiseLike<T>) => void;
 
@@ -50,7 +50,7 @@ export type OnFinally = () => void;
 
 /**
  * A function suitable for passing to {@link Future#onStart}, to be notified when
- * the computation is started. This can be for monitoring or debugging.
+ * the task is started. This can be for monitoring or debugging.
  *
  * ```typescript
  * const f = new Future(long_computation).onStart(() => console.log("Started"));

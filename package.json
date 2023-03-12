@@ -1,7 +1,7 @@
 {
   "name": "better-future",
   "version": "0.1.0",
-  "description": "Better defered computation",
+  "description": "Better defered task/Promise",
   "type": "module",
   "main": "lib/cjs/index.js",
   "module": "lib/esm/index.js",

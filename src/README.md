@@ -1,6 +1,6 @@
 # A Better Future package
 
-A {@link Future} is just like a `Promise`, except the computation does not start until and
+A {@link Future} is just like a `Promise`, except the task does not start until and
 unless `.then`() is called. It is a _thenable_, and thus can be used anywhere a
 `Promise` can be used. The full {@link Promise} API is implemented, including static methods.
 
@@ -9,12 +9,12 @@ or not performed at all when they may not be needed.
 
 A {@link Future} can be in one of these states:
 
-* {@link #PENDING}: The initial state. The computation has not yet been started.
-* {@link #RUNNING}: The computation has been started, but has neither returned nor
+* {@link #PENDING}: The initial state. The task has not yet been started.
+* {@link #RUNNING}: The task has been started, but has neither returned nor
   thrown an exception. This corresponds to the _Pending_ state in a `Promise`.
-* {@link #PAUSED}: A pause in the computation has been requested.
-* {@link #FULFILLED} The computation has returned a value.
-* {@link #REJECTED}: The computation has thrown an exception or returned a rejected
+* {@link #PAUSED}: A pause in the task has been requested.
+* {@link #FULFILLED} The task has returned a value.
+* {@link #REJECTED}: The task has thrown an exception or returned a rejected
   `Promise`.
 * {@link #CANCELLED}: After being cancelled, the `Future` will be in this state until all {@link #onCancel} handlers
   have been called, after which it transitions to{@link #REJECTED}. {@link #state} will remain at {@link #CANCELLED} to denote why it was rejected.

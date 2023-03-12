@@ -11,8 +11,8 @@ stateDiagram-v2
     if_start --> Cancelled : [cancel]
 
     Running --> if_resolved
-    if_resolved --> state=FULFILLED : computation returns
-    if_resolved --> state=REJECTED : computation throws
+    if_resolved --> state=FULFILLED : task returns
+    if_resolved --> state=REJECTED : task throws
     if_resolved --> Cancelled : [cancel]
 
     state=FULFILLED --> Fulfilled
@@ -55,7 +55,7 @@ stateDiagram-v2
         Execute --> [*] : [rejected]
         Execute --> [*] : [fulfilled]
         Execute --> [*] : [pause > 0]
-        Execute : Execute computation
+        Execute : Execute task
       }
 
       state Paused {

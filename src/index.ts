@@ -19,7 +19,7 @@ export {
 export {State} from "./state";
 
 export type {
-    Computation, Continuation, ComputationPromiselike, ComputationSimple,
+    Task as Task, Continuation, PromiseLikeTask, SimpleTask,
     OnFinally, OnFulfilled, OnRejected, OnStart, FailCallback,
     UnixTime, Millis, TaskGroupOptions, TaskGroupResultType, TaskType
 } from './types'

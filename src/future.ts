@@ -4,7 +4,7 @@
  */
 
 import type {
-    ComputationSimple, Computation, Continuation,
+    SimpleTask, Task, Continuation,
     FailCallback, Handler, Millis,
     OnFinally, OnFulfilled, OnRejected,
     OnStart, UnixTime
@@ -13,11 +13,11 @@ import {State} from './state';
 import {FutureState} from './future-state';
 import { CancelledException,  TimeoutException, Throw } from './utils';
 
-const isSimpleComputation = <T>(c: Computation<T>): c is ComputationSimple<T> =>
+const isSimpleComputation = <T>(c: Task<T>): c is SimpleTask<T> =>
     c.length === 0;
 
 
-const simple = <T>(f: Computation<T>): ComputationSimple<T> =>
+const simple = <T>(f: Task<T>): SimpleTask<T> =>
     isSimpleComputation(f)
         ? f
         : () => new Promise((accept, reject) =>
@@ -25,19 +25,19 @@ const simple = <T>(f: Computation<T>): ComputationSimple<T> =>
 
 
 /**
- * A {@link Future} is a computation that will be performed in the future.
+ * A {@link Future} is a taskill be performed in the future.
  * It is a promise that can be cancelled or timed out, but does not begin
  * running until until there is a {@link #then} handler for it, or it is
  * explicitly started with {@link #start}.
  *
  * A {@link Future} can be in one of these states:
  *
- * * {@link #PENDING}: The initial state. The computation has not yet been started.
- * * {@link #RUNNING}: The computation has been started, but has neither returned nor
+ * * {@link #PENDING}: The initial state. The task has not yet been started.
+ * * {@link #RUNNING}: The task has been started, but has neither returned nor
  *   thrown an exception. This corresponds to the _Pending_ state in a
  *   [`Promise`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise).
- * * {@link #FULFILLED} The computation has returned a value.
- * * {@link #REJECTED}: The computation has thrown an exception or returned a rejected
+ * * {@link #FULFILLED} The task has returned a value.
+ * * {@link #REJECTED}: The task has thrown an exception or returned a rejected
  *   [`Promise`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise).
  * * {@link #CANCELLED}: After being cancelled, the {@link Future} will be in this
  *   state until all {@link #onCancel} handlers have been called, after which it
@@ -47,7 +47,7 @@ const simple = <T>(f: Computation<T>): ComputationSimple<T> =>
  *    this state until all {@link #onTimeout} handlers have been run.
  *
  * At their simplest, a {@link Future}, once created, can be used exactly like a `Promise`,
- * with the execution of the computation deferred until the first {@link #then} handler is
+ * with the execution of the task deferred until the first {@link #then} handler is
  * added. For example:
  *
  * ```typescript
@@ -92,7 +92,7 @@ export class Future<T> {
     #s: FutureState<T>;
 
     /**
-     * The promise that will be resolved when the computation is complete.
+     * The promise that will be resolved when the task is complete.
      * @hidden
      */
     #promise: Promise<any>;
@@ -117,17 +117,17 @@ export class Future<T> {
     }
 
     /**
-     * Takes a computation to be performed in the future. The _comutation_ is
+     * Takes a task to be performed in the future. The _comutation_ is
      * either:
      * * a function of 0 arguments that will receive  the
-     *   {@link Future} instance itself as its implicit `this` parameter. The computation may return a value, which is
+     *   {@link Future} instance itself as its implicit `this` parameter. The task may return a value, which is
      *   then received by the caller of the {@link Future} instance via the {@link #then}
-     *   or {@link #catch} methods. The computation may also return a `Promise`,
+     *   or {@link #catch} methods. The task may also return a `Promise`,
      *   whose value will be used in the same way.
      * * a function of 2 arguments, the first of which is a {@link ResolveCallback} and the second of which is a
-     *   {@link FailCallback}. The computation may call the {@link ResolveCallback} to
+     *   {@link FailCallback}. The task may call the {@link ResolveCallback} to
      *   resolve the {@link Future} with a value, or the {@link FailCallback} to reject it
-     *   with an exception. The computation may also return a `Promise`, whose value will
+     *   with an exception. The task may also return a `Promise`, whose value will
      *   be used in the same way.
      *
      *
@@ -160,30 +160,30 @@ export class Future<T> {
      * }
      * ```
      *
-     * @param computation
+     * @param task
      */
-    constructor(computation: Computation<T>)  {
-        if (computation instanceof Future) {
-            const o = computation;
+    constructor(task: Task<T>)  {
+        if (task instanceof Future) {
+            const o = task;
             this.#s = o.#s;
             this.#promise = o.#promise;
         } else {
             this.#s = new FutureState(this);
             this.#promise = new Promise<T>((resolve, reject) => {
-                // Our internal computation wraps the supplied one to handle
+                // Our internal task wraps the supplied one to handle
                 //
-                this.#s.computation = (): T | PromiseLike<T> => {
-                    this.#s.computation = null;
+                this.#s.task = (): T | PromiseLike<T> => {
+                    this.#s.task = null;
                     this.#s.state = State.RUNNING;
                     this.#s.startTime = Date.now();
                     this.#s.onStart?.(this.#s.startTime);
                     try {
-                        if (isSimpleComputation(computation)) {
-                            const v = computation.call(this.#s.context );
+                        if (isSimpleComputation(task)) {
+                            const v = task.call(this.#s.context );
                             resolve(v);
                             return v;
                         } else {
-                            computation(resolve, reject);
+                            task(resolve, reject);
                             return undefined as T;
                         }
                     } catch (e: unknown) {
@@ -222,7 +222,7 @@ export class Future<T> {
      */
     #resolved<T>(state: State, handler: Handler<T> | null | undefined, v: T, e: Error | null) {
         this.#s.state = state;
-        this.#s.computation = this.#s.onCancel = undefined;
+        this.#s.task = this.#s.onCancel = undefined;
         this.#s.onTimeout = this.#s.onStart = undefined;
         if (e) this.#s.exception = e;
         handler?.(v);
@@ -230,10 +230,10 @@ export class Future<T> {
     }
 
     /**
-     * Starts the computation, then returns a new {@link Future}
-     * that will be resolved when the computation
+     * Starts the task, then returns a new {@link Future}
+     * that will be resolved when the task
      * is complete, and which will resolve with the result of _onFulfilled_ being
-     * the computation's value. If the computation throws an exception, the new
+     * the task's value. If the task throws an exception, the new
      * {@link Future} will get the result of the _onRejected_ handler, if any.
      * Otherwise, the new {@link Future} will be rejected with the same exception.
      *
@@ -245,61 +245,61 @@ export class Future<T> {
      * @returns the new {@link Future} instance.
      */
     then<R,E>(onFulfilled: OnFulfilled<T,R>, onRejected: OnRejected<E>): Future<R|E> {
-        this.#s.computation?.call(this.#s.context);
-        const next = new Future<R|E>(this as any as Computation<R|E>);
+        this.#s.task?.call(this.#s.context);
+        const next = new Future<R|E>(this as any as Task<R|E>);
         next.#promise = this.#promise.then(onFulfilled, onRejected);
         return next;
     }
 
     /**
-     * Handles rejected {@link Future} instances. This does not start the computation,
+     * Handles rejected {@link Future} instances. This does not start the task,
      * since in most cases, we are interested in the fulfillment of the {@link Future},
      * not its rejection.
      *
      * Often, {@link #catch} handlers are set up separately from the {@link #then}
      * handlers that consume the result.
      *
-     * If you need the computation started, use {@link #start}, use {@link #catch}
+     * If you need the task started, use {@link #start}, use {@link #catch}
      * together with {@link #then}, or use the two-argument form of the {@link #then}method.
      *
      * See {@link #then} for more details.
      *
-     * @param onRejected the handler to be called if the computation throws an exception.
+     * @param onRejected the handler to be called if the task throws an exception.
      * @returns a new {@link Future} instance.
      */
     catch(onRejected: OnRejected<T>): Future<T> {
-        const next = new Future<T>(this as any as Computation<T>);
+        const next = new Future<T>(this as any as Task<T>);
         next.#promise = next.#promise.catch(onRejected);
         return next;
     }
 
     /**
-     * Call the handler when the computation completes, regardless of success.
+     * Call the handler when the task completes, regardless of success.
      *
-     * @param onFinally Handler to be called when the computation is complete.
+     * @param onFinally Handler to be called when the task is complete.
      * @returns a new {@link Future} instance.
      */
     finally(onFinally: OnFinally) {
-        const next = new Future<T>(this as any as Computation<T>);
+        const next = new Future<T>(this as any as Task<T>);
         next.#promise = next.#promise.finally(onFinally);
         return next;
     }
 
     /**
-     * Identical to {@link #then}, but does not start the computation.
+     * Identical to {@link #then}, but does not start the task.
      *
      * @param onFulfilled
      * @param onRejected
      * @returns
      */
     when<R>(onFulfilled: OnFulfilled<T, R>, onRejected: OnRejected<R>) {
-        const next = new Future<R>(this as any as Computation<R>);
+        const next = new Future<R>(this as any as Task<R>);
         next.#promise = this.#promise.then(onFulfilled, onRejected);
         return next;
     }
 
     /**
-     * Register a handler to be called when the computation starts.
+     * Register a handler to be called when the task starts.
      * @param handler
      * @returns this {@link Future} instance.
      */
@@ -309,17 +309,17 @@ export class Future<T> {
     }
 
     /**
-     * Start the computation, if not already started.
+     * Start the task, if not already started.
      *
      * @returns this {@link Future} instance.
      */
     start() {
-        this.#s.computation?.call(this.#s.context);
+        this.#s.task?.call(this.#s.context);
         return this;
     }
 
     /**
-     * Cancel a pending or started {@link Future} computation, by setting the {@link #state}
+     * Cancel a pending or started {@link Future} task, by setting the {@link #state}
      * to {@link #CANCELLED}, and calling the {@link #onCancel} handlers, if any.
      * The {@link Future} is rejected with a {@link CancelledException} exception.
      *
@@ -406,7 +406,7 @@ export class Future<T> {
 
     /**
      * Create a {@link Future} that will not start until the specified delay
-     * after the computation is requested.
+     * after the task is requested.
      *
      * To immediately start the delay countdown:
      *
@@ -414,7 +414,7 @@ export class Future<T> {
      * Future.delay(myComputation).start()
      * ```
      *
-     * Delay injects a delay into the {@link #RUNNING} state, so the computation
+     * Delay injects a delay into the {@link #RUNNING} state, so the task
      * will not start until the delay has elapsed.
      *
      * ![State diagram for Future.delay](../images/delay.svg)
@@ -422,10 +422,10 @@ export class Future<T> {
      * @param delay the delay in milliseconds.
      * @returns the delaed {@link Future}.
      */
-    static delay(delay: Millis): <T>(a: Computation<T>) => Future<T> {
-        return <T>(computation: Computation<T>) => {
+    static delay(delay: Millis): <T>(a: Task<T>) => Future<T> {
+        return <T>(task: Task<T>) => {
             const p = new Promise((resolve, reject) => setTimeout(resolve, delay));
-            const f: ComputationSimple<T> = simple(computation);
+            const f: SimpleTask<T> = simple(task);
             const future: Future<T> = new Future<T>(() => p.then(() => future.#s.call(f)));
             return future;
         };
@@ -433,7 +433,7 @@ export class Future<T> {
 
     /**
      * Create a {@link Future} that will time out _timeout_ milliseconds after
-     * the computation is started.
+     * the task is started.
      *
      * ![State diagram for Future.timeoutFromNow](../../images/timeoutFromNow.svg)
      *
@@ -443,11 +443,11 @@ export class Future<T> {
      */
     static timeoutFromNow(timeout: Millis, msg = "Timeout") {
         const msg_dflt = msg;
-        return <T>(computation: Computation<T>, msg: string = msg_dflt) => {
+        return <T>(task: Task<T>, msg: string = msg_dflt) => {
             // Start the timer now
             const start = Date.now();
             const future: Future<T> = new Future<T>(async (): Promise<T> => {
-                const c = Promise.resolve<T>(future.#s.call(simple(computation))).then(
+                const c = Promise.resolve<T>(future.#s.call(simple(task))).then(
                     (v) => ((future.#s.onTimeout = null), v)
                 );
                 const p = new Promise<TimeoutException<T>>((resolve, reject) =>
@@ -471,7 +471,7 @@ export class Future<T> {
      */
     static timeout(timeout: Millis, msg: string = "Timeout") {
         const msg_dflt = msg;
-        return <T>(computation: Computation<T>, msg: string = msg_dflt) => {
+        return <T>(task: Task<T>, msg: string = msg_dflt) => {
             const tmsg = msg ?? msg_dflt;
             const future: Future<T> = new Future<T>(async (): Promise<T> => {
                 // Start the timer when the Future executes.
@@ -479,7 +479,7 @@ export class Future<T> {
                 const p = new Promise<TimeoutException<T>>((resolve, reject) =>
                     setTimeout(() => resolve(new TimeoutException<T>(future, tmsg, start)), timeout)
                 ).then((e) => (future.#s.onTimeout?.(e), Throw(e)));
-                const f = simple(computation);
+                const f = simple(task);
                 const c: Promise<T> = Promise.resolve(future.#s.call(f)).then(
                     (v) => ((future.#s.onTimeout = null), v)
                 );

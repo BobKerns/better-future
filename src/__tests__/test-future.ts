@@ -69,7 +69,7 @@ describe("Basic", () => {
                 expect(value).toBeTruthy());
 
              // Future.runnable should error if accessed before start.
-             // It should only be accessed from a running computation.
+             // It should only be accessed from a running task.
             test('Future.runnable invalid access', () => {
                 const f = new Future(() => 1);
                 const s = new FutureState(f);

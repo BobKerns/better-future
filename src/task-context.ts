@@ -21,15 +21,22 @@ export class TaskContext<T> {
     }
 
     /**
-     * Pause the computation.
+     * Pause the task.
      * 
-     * A computation might pause itself in response to a user request,
-     * or as part of a retry loop.
+     * A task might pause itself in response to a user request,
+     * or as part of a retry loop after setting a timer..
     */
     pause() {
         this.#s.pause();
     }
 
+
+    /**
+     * Resume the task.
+     * 
+     * A task might resume itself in response to a user request,
+     * or as part of a retry loop after setting a timer.
+     */
     resume() {
         this.#s.resume();
     }

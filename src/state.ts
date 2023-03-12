@@ -10,25 +10,25 @@ import type {Future} from './future';
  */
 export enum State {
     /**
-     * The computation has not yet been started.
+     * The task has not yet been started.
      */
     PENDING = 'PENDING',
     /**
      * The {@link Future} was started with {@link Future.delay},
      * has been started, but the delay has not yet expired.
-     * The computation will not be started until the delay expires.
+     * The task will not be started until the delay expires.
      */
     DELAY = 'DELAY',
     /**
-     * The computation is in progress.
-     * The computation may be asynchronous, and may not yet have completed.
-     * The computation may be cancelled or time out before it completes,
+     * The task is in progress.
+     * The task may be asynchronous, and may not yet have completed.
+     * The task may be cancelled or time out before it completes,
      * resulting in a rejection.
      */
     RUNNING = 'RUNNING',
     /**
-     * The computation has been paused. It may be resumed.
-     * The computation may be cancelled or time out before it completes,
+     * The task has been paused. It may be resumed.
+     * The task may be cancelled or time out before it completes,
      * resulting in a rejection.
      *
      * Only _cancellation-aware_ computations can be effectively paused or
@@ -39,19 +39,19 @@ export enum State {
      */
     PAUSED = 'PAUSED',
     /**
-     * The computation has completed successfully and the result is available.
+     * The task has completed successfully and the result is available.
      * via `await, {@link Future#then}, or {@link Future#when}.
      */
     FULFILLED = 'FULFILLED',
     /**
-     * The computation has completed with an error, which can be handled
+     * The task has completed with an error, which can be handled
      * via {@link Future#catch} or the second argument to {@link Future#then}
      * or {@link Future#when}.
      */
     REJECTED = 'REJECTED',
     /**
-     * The computation has timed out and been rejected.
-     * The computation may still be running, but the result will be ignored.
+     * The task has timed out and been rejected.
+     * The task may still be running, but the result will be ignored.
      *
      * @see {@link Future.timeout}
      * @see {@link Future.timeoutFromNow}
@@ -59,8 +59,8 @@ export enum State {
      */
     TIMEOUT = 'TIMEOUT',
     /**
-     * The computation has been cancelled and been rejected.
-     * The computation may still be running, but the result will be ignored.
+     * The task has been cancelled and been rejected.
+     * The task may still be running, but the result will be ignored.
      *
      * @see {@link Future#cancel}
      * @see {@link Future#onCancel}

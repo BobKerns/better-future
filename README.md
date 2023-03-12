@@ -1,10 +1,10 @@
-# better-future: Better handling of deferred computation compatible with Promises
+# better-future: Better handling of deferred task compatible with Promises
 
 ## API
 
 ## Lifecyce of a [`Future`](build/docs/api/classes/Future.html)
 
-A [`Future`](api/classes/Future.html) is a computation that
+A [`Future`](api/classes/Future.html) is a task that
 will be performed in the future. It is a
 [`Promise`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)
 that can be cancelled or timed out, but does not begin
@@ -14,16 +14,16 @@ explicitly started with {@link #start}.
 A [`Future`](api/classes/Future.html) can be in one of these states:
 
 * [`PENDING`](api/enums/State.html#PENDING):
-  The initial state. The computation has not yet been started.
+  The initial state. The task has not yet been started.
 * [`RUNNING`](api/enums/State.html#RUNNING):
-  The computation has been started, but has neither returned nor
+  The task has been started, but has neither returned nor
   thrown an exception. This corresponds to the _Pending_ state in a
   [`Promise`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise).
 * [`PAUSED`](api/enums/State.html#PAUSED): A pause in execution has been requested.
 * [`FULFILLED`](api/enums/State.html#FULFILLED)
-  The computation has returned a value.
+  The task has returned a value.
 * [`REJECTED`](api/enums/State.html#REJECTED):
-  The computation has thrown an exception or returned a rejected
+  The task has thrown an exception or returned a rejected
   [`Promise`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise).
 * [`CANCELLED`](api/enums/State.html#CANCELLED): After being cancelled, the
   [`Future`](api/classes/Future.html) will be in this state until
@@ -54,7 +54,7 @@ On creation, the state will be _Pending_.
 
 ### _future_.`then`(_onFulfilled_, _onRejected_)
 
-Start the computation running, if it is not already running. When the computation
+Start the task running, if it is not already running. When the computatask
 terminates, _onFulfilled_ or _onRejected_ will be called with the value or error
 as with a `Promise`.
 
@@ -76,13 +76,13 @@ time.
 
 ### _future_.`when`(_onFulfilled_, _onRejected_)
 
-Like _future_.`then`(), but does not start the computation.
+Like _future_.`then`(), but does not start the task.
 
-This is useful when setting up a computation and being notified if/when it completes.
+This is useful when setting up a task and being notified if/when it completes.
 
 ### _future_.`start`()
 
-Starts the computation but does not add any handler.
+Starts the task but does not add any handler.
 
   ```javascript
 future.start().when(handler)
@@ -96,22 +96,22 @@ future.then(handler)
 
 ### _future_.`onStart`(_handler_)
 
-Regesters a _handler_ that that will be notified that the computation has been started.
-The _handler_ will receive the time the computation started. Handlers can be added
+Regesters a _handler_ that that will be notified that the task has been started.
+The _handler_ will receive the time the task started. Handlers can be added
 at any time, including long after the `Future` is resolved.
 
 ### _future_.`onTimeout`(_handler_)
 
 Registers a _handler_ that will be notified if the `Future` times out. This can
 only happen if the future is creaed with `Future`.`timeoutFromNow`() or
-`Future`.`timeout`, or if the computation throws an instance of `Timeout`.
+`Future`.`timeout`, or if the task throws an instance of `Timeout`.
 
 ### _future_.`cancel`(_msg_=`‘Cancelled’`)
 
 Cancel a pending or executing `Future`. Does nothing if it has completed.
 
-Cancelling a `Future` while the computation is running depends on the computation to
-check _future_.`isCancelled`() to actually halt execution, but the `Future`
+Cancelling a `Future` while the task is running depends on the task to
+await on  _context_.`running`() to actually halt execution, but the `Future`
 will be cancelled regardless.
 
 ![State Diagram for cancelling](images/cancel.svg)
@@ -132,7 +132,7 @@ Checks if the `Future` has been cancelled or timed out. Throws the corresponding
 `Cancelled` or `Timeout` exception if so. Otherwise, if _continuation_ is called,
 it will be called with the `Future` as an argument.
 
-It is an error to call this from anywhere but an ongoing `Future` computation.
+It is an error to call this from anywhere but an ongoing `Future` task.
 
 ### _future_.`state`
 
@@ -147,7 +147,7 @@ Returns one of:
 
 ### `Future`.`delay` (_ms_) (_computation_)
 
-Returns a function that when applied to a computation, delays the computation
+Returns a function that when applied to a task, delays the task
 until a minimum of _ms_ milliseconds have passed.
 
 To immediately start the delay countdown:
@@ -160,16 +160,16 @@ Future.delay(myComputation).start()
 
 ### `Future`.`timeout` (_ms_) (_computation_)
 
-Returns a function that when applied to a computation, will return a
-`Future` that will time out that computation _ms_ milliseconds after
+Returns a function that when applied to a task, will return a
+`Future` that will time out that task _ms_ milliseconds after
 it is started.
 
 ![State diagram with timeout](images/timeout.svg)
 
 ### `Future`.`timeoutFromNow` (_ms_) (_computation_)
 
-Returns a function that when applied to a computation, will return a
-`Future` that will time out that computation
+Returns a function that when applied to a task, will return a
+`Future` that will time out that task
 _ms_ milliseconds from when when it enters the _Pending_ state.
 
 ![State Diagram for Future.timeoutFromNow](images/timeoutFromNow.svg)

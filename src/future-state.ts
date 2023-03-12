@@ -3,7 +3,7 @@
  * Copyright 2023 by Bob Kerns. Licensed under MIT license.
  */
 
-import type { ComputationSimple, StartCallback, FailCallback, UnixTime } from "./types";
+import type { SimpleTask, StartCallback, FailCallback, UnixTime } from "./types";
 import type { Future } from './future'
 import { State } from "./state";
 import { TimeoutException, CancelledException, FinishedException } from "./utils";
@@ -12,7 +12,7 @@ import { TaskContext } from "./task-context";
 
 /**
  * Internal shared state of a {@link Future}. This is the shared state of all
- * {@link Future} instances that are derived from a single computation.
+ * {@link Future} instances that are derived from a single task
  * @hidden
  */
 export class FutureState<T> {
@@ -27,8 +27,8 @@ export class FutureState<T> {
         return this.#context!
     }
 
-    // The computation to be performed, or null if it is already started or no longer eligible.
-    computation?: ComputationSimple<T> | null;
+    // The task to be performed, or null if it is already started or no longer eligible.
+    task?: SimpleTask<T> | null;
     // The Promise that handles OnStart handlers.
     #onStartPromise?: Promise<UnixTime>;
     #onStart?: StartCallback | null;
@@ -48,7 +48,7 @@ export class FutureState<T> {
     }
 
     // the fulfilled handler for the OnStart promise.
-    // Called when the computation is started.
+    // Called when the task is started.
     get onStart(): StartCallback | undefined {
         // null implies this handler is now irrelevant.
         if (this.#onStart === null) {
@@ -82,7 +82,7 @@ export class FutureState<T> {
     }
 
     // the fulfilled handler for the OnTimeout promise
-    // Called when the computation times out.
+    // Called when the task times out.
     get onTimeout(): FailCallback<TimeoutException<T>> | undefined {
         // null implies this handler is now irrelevant.
         if (this.#onTimeout === null) {
@@ -113,7 +113,7 @@ export class FutureState<T> {
     }
 
     // The fulfilled handler for the OnCancel promise
-    // Called when the computation is cancelled.
+    // Called when the task is cancelled.
     get onCancel(): FailCallback<CancelledException<T>> | undefined {
         // null implies this handler is now irrelevant.
         if (this.#onCancel === null) {
@@ -142,7 +142,7 @@ export class FutureState<T> {
     #resume?: (v: TaskContext<T>) => void;
 
     /**
-     * The `Promise` to resolve to resume the computation.
+     * The `Promise` to resolve to resume the task
      */
     #pausePromise?: Promise<TaskContext<T>>;
 
@@ -167,16 +167,16 @@ export class FutureState<T> {
      */
     get runable(): Promise<TaskContext<T>> {
         switch (this.state) {
-            case "PENDING":
+            case State.PENDING:
                 throw new Error(
-                    " is to be used as part of a running Future computation."
+                    ".runable is to be used as part of a running Future task."
                 );
-            case "RUNNING":
+            case State.RUNNING:
                 return Promise.resolve(this.context);
-            case "PAUSED":
+            case State.PAUSED:
                 return this.#pausePromise!;
-            case "TIMEOUT":
-            case "CANCELLED":
+            case State.TIMEOUT:
+            case State.CANCELLED:
                 return Promise.reject(this.exception);
             default:
                 return Promise.reject(new FinishedException(this.#head, this.startTime));
@@ -208,7 +208,7 @@ export class FutureState<T> {
         }
     }
 
-    call(f: ComputationSimple<T>) {
+    call(f: SimpleTask<T>) {
         return f.call(this.context);
     }
 }
