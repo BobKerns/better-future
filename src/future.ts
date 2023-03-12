@@ -424,9 +424,14 @@ export class Future<T> {
      */
     static delay(delay: Millis): <T>(a: Task<T>) => Future<T> {
         return <T>(task: Task<T>) => {
-            const p = new Promise((resolve, reject) => setTimeout(resolve, delay));
-            const f: SimpleTask<T> = simple(task);
-            const future: Future<T> = new Future<T>(() => p.then(() => future.#s.call(f)));
+            const future: Future<T> = new Future<T>(async () => {
+                const p = new Promise((resolve, reject) => setTimeout(resolve, delay));
+                const f: SimpleTask<T> = simple(task);
+                future.#s.state = State.DELAY;
+                await p;
+                future.#s.state = State.RUNNING;
+                return f.call(future.#s.context);
+            });
             return future;
         };
     }
@@ -444,15 +449,16 @@ export class Future<T> {
     static timeoutFromNow(timeout: Millis, msg = "Timeout") {
         const msg_dflt = msg;
         return <T>(task: Task<T>, msg: string = msg_dflt) => {
-            // Start the timer now
             const start = Date.now();
-            const future: Future<T> = new Future<T>(async (): Promise<T> => {
+            let future: Future<T>;
+            const p = new Promise<TimeoutException<T>>((resolve, reject) =>
+                setTimeout(() => reject(new TimeoutException(future, msg)), timeout)
+            ).catch(e => (future.#s.onTimeout?.(e), Throw(e)));
+            // Start the timer now
+            future = new Future<T>(async (): Promise<T> => {
                 const c = Promise.resolve<T>(future.#s.call(simple(task))).then(
                     (v) => ((future.#s.onTimeout = null), v)
                 );
-                const p = new Promise<TimeoutException<T>>((resolve, reject) =>
-                    setTimeout(() => reject(new TimeoutException(future, msg, Date.now())), timeout)
-                ).catch(e => (future.#s.onTimeout?.(e), Throw(e)));
                 return await Promise.race([c, p]) as T;
             });
             return future;
@@ -477,8 +483,11 @@ export class Future<T> {
                 // Start the timer when the Future executes.
                 const start = Date.now();
                 const p = new Promise<TimeoutException<T>>((resolve, reject) =>
-                    setTimeout(() => resolve(new TimeoutException<T>(future, tmsg, start)), timeout)
-                ).then((e) => (future.#s.onTimeout?.(e), Throw(e)));
+                    setTimeout(() => reject(new TimeoutException<T>(future, tmsg, start)), timeout)
+                ).catch((e) => {
+                    future.#s.onTimeout?.(e);
+                    throw e;
+                });
                 const f = simple(task);
                 const c: Promise<T> = Promise.resolve(future.#s.call(f)).then(
                     (v) => ((future.#s.onTimeout = null), v)
@@ -600,6 +609,4 @@ export class Future<T> {
     static any<T>(thenables: Iterable<PromiseLike<T>>): Future<T> {
         return new Future<T>(() => Promise.any(thenables));
     }
-
-
 }

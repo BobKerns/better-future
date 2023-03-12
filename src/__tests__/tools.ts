@@ -4,7 +4,7 @@
 
 import {State, Future} from '..';
 
-export const p_never = () => new Promise(() => {})
+export const p_never = new Promise(() => {});
 
 export type MethodTags = 'static' | 'constructor' | 'instance' | 'field';
 

@@ -2,7 +2,7 @@
  * Copyright 2023 by Bob Kerns. Licensed under MIT license.
  */
 
-import { CancelContext, Future, withThis } from "..";
+import { CancelContext, Future, Throw, TimeoutException, withThis } from "..";
 import { FutureState } from "../future-state";
 import { MethodSpec, is, isState, isStatic, isInstance, hasTag, p_never } from "./tools";
 
@@ -33,6 +33,12 @@ const methods: Array<MethodSpec<Future<any>, typeof Future>> = [
 ];
 
 describe("Basic", () => {
+    // Check for broken p_never
+    test("p_never", async () => {
+        const p = new Promise((resolve, reject) => 
+            setTimeout(resolve, 100));
+        await Promise.race([p, p_never.then(() => Throw("never happened"))]);
+    });
     describe("API completeness", () => {
         test("Future is a function", () =>
             expect(Future)
@@ -82,6 +88,8 @@ describe("Basic", () => {
                     }
                 })()).toBeInstanceOf(Error)
             });
+        });
+        describe("Future functional", () => {
             test('Future.runnable runnable', async () => {
                 let c: CancelContext<any>;
                 const f = new Future(withThis((ctx: CancelContext<any>) => (c = ctx))).start();
@@ -102,9 +110,10 @@ describe("Basic", () => {
             expect(f.isCancelled).toBe(false);
         });
 
+        // Test starting a simple task.
         describe('Start'  , () => {
-            test ("Never", () => {
-                const fNever = new Future(p_never);
+            test ("Never but started", () => {
+                const fNever = new Future(() => p_never);
                 expect(fNever.start().state).toBe('RUNNING');
             });
             test ("Immediate", () => {
@@ -126,6 +135,63 @@ describe("Basic", () => {
                     return fFail.state;
                 })())
                 .resolves.toBe('REJECTED');
+            });
+        });
+
+        describe("delay", () => {
+            test("delay", async () => {
+                const f = Future.delay(100)(() => 1);
+                expect(f.state).toBe('PENDING');
+                const startTime = Date.now();
+                expect(f.start().state).toBe('DELAY');
+                await f;
+                expect(Date.now() - startTime).toBeGreaterThan(99.9)
+                expect(f.state).toBe('FULFILLED');
+            });
+        });
+
+        describe("timeout", () => {
+            test("timeout", async () => {
+                const createTime = Date.now();
+                const f = Future.timeout(100)(() => p_never);
+                await Future.delay(100)(() => 1);
+                expect(f.state).toBe('PENDING');
+                const startTime = Date.now();
+                expect(f.start().state).toBe('RUNNING');
+                try {
+                    await f;
+                    throw new Error("Did not time out");
+                } catch (e) {
+                    if (!(e instanceof TimeoutException)) throw e;
+                    expect(e).toBeInstanceOf(TimeoutException);
+                    expect(Date.now() - startTime).toBeGreaterThan(99.9);
+                    expect(Date.now() - startTime).toBeLessThan(150);
+                    expect(Date.now() - createTime).toBeGreaterThan(199.9);
+                    expect(e.endTime - e.startTime).toBeLessThan(150);
+                    expect(e.endTime - startTime).toBeLessThan(150);
+                    expect(f.state).toBe('TIMEOUT');
+                }
+            });
+        });
+        describe("timeoutFromNow", () => {
+            test("timeoutFromNow", async () => {
+                const createTime = Date.now();
+                const f = Future.timeoutFromNow(100)(() => p_never);
+                await Future.delay(50)(() => 1);
+                expect(f.state).toBe('PENDING');
+                const startTime = Date.now();
+                expect(f.start().state).toBe('RUNNING');
+                try {
+                    await f;
+                    throw new Error("Did not time out");
+                } catch (e) {
+                    if (!(e instanceof TimeoutException)) throw e;
+                    expect(e).toBeInstanceOf(TimeoutException);
+                    expect(Date.now() - createTime).toBeGreaterThan(99.9);
+                    expect(e.endTime - createTime).toBeGreaterThanOrEqual(100);
+                    expect(e.endTime - startTime).toBeLessThan(100);
+                    expect(f.state).toBe('TIMEOUT');
+                }
             });
         });
     });
