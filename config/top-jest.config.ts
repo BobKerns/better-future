@@ -6,10 +6,11 @@
 export default {
     preset: 'ts-jest',
     testMatch: [
-        "<rootDir>/**/__tests__/**.{ts,tsx,js,jsx,mjs}",
+        "<rootDir>/**/__tests__/test-**.{ts,tsx,js,jsx,mjs}",
         "!**/*.d.ts?(x)",
         "!**/suite-*.ts",
         "!**/index*.*",
+        "!**/tools.ts",
         // <rootDir> is not substituted unless at beginning, e.g. not in negated patterns!
         // This doesn't matter for terminal patterns, but for intermediate directories, we
         // need to use /src/ to ensure we only match below a /src/ directory (presumably ours).
