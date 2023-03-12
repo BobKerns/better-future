@@ -68,3 +68,19 @@ export class CancelledException<T> extends FutureException<T> {
 export const Throw = (e: any = new Error()) => {
     throw e;
 };
+
+/**
+ * Adapt a function that expects an object in the first position,
+ * to one that expects the object as `this`.
+ * 
+ * If it is not an arrow function, or already bound to an object,
+ * `this` will still be supplied.
+ * 
+ * @param f a function with at least one argument
+ * @returns 
+ */
+export function withThis<T,R>(f: (thisArg: T, ...args: any) => R) {
+    return function(this: T, ...args: any[]) {
+        return f.call(this, this, ...args);
+    }
+}
