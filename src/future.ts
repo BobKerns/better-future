@@ -18,7 +18,7 @@ const isSimpleComputation = <T>(c: Task<T>): c is SimpleTask<T> =>
     c.length === 0;
 
 /**
- * A {@link Future} is a taskill be performed in the future.
+ * A {@link Future} is a task to be performed in the future.
  * It is a promise that can be cancelled or timed out, but does not begin
  * running until until there is a {@link #then} handler for it, or it is
  * explicitly started with {@link #start}.
@@ -72,7 +72,7 @@ const isSimpleComputation = <T>(c: Task<T>): c is SimpleTask<T> =>
  * The following diagram shows the basic states of a {@link Future} (excluding timeouts), which
  * are covered in more detail later.
  *
- * ![Diagram of basic states](../images/basic-states.svg)
+ * ![Diagram of basic states](../../images/basic-states.svg)
  *
  * This is the full unkfied set of states; a given use will use only a subset of these.
 */
