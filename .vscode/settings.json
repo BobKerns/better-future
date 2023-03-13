@@ -1,4 +1,7 @@
 {
     "jest.jestCommandLine": "./node_modules/.bin/jest",
-    "gitlens.advanced.repositorySearchDepth": 1
+    "gitlens.advanced.repositorySearchDepth": 1,
+    "jest.testExplorer": {
+        "showInlineError": true
+    }
 }
