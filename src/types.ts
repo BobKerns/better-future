@@ -4,12 +4,29 @@
  */
 
 import type {Future} from './future';
+import type { TaskGroup } from './group';
 import type { TaskContext } from './task-context';
 
+/**
+ * Signature for a sipmle task, which is a function of no arguments that returs a value or a promise.
+ * The context is passed as `this`, to avoid ambiguity with {@link PromiseLikeTask}s.
+ */
 export type SimpleTask<T> =
     ((this: TaskContext<T>) => T | PromiseLike<T>)
     | (() => T | PromiseLike<T>);
 
+/**
+ * A task that accepts the {@link TaskContext} as an argument.  This signature can be used if the
+ * _options_ argument to {@link Future} is supplied.
+ */
+export type DirectTask<T> =
+    ((ctx: TaskContext<T>) => T);
+
+/**
+ * A task that takes callbacks for success and failure.  This signature can be used if the
+ * _options_ argument to {@link Future} is not supplied.
+ * It is primarily for compatibility with the `Promise` constructor.
+ */
 export type PromiseLikeTask<T> =
     (
         resolve: (v: T | PromiseLike<T>) => void,
@@ -17,12 +34,22 @@ export type PromiseLikeTask<T> =
     ) => void;
 
 /**
- * A task to be performed in the future.
+ * A task to be performed in the future, compatible with `Promise`.
  */
-export type Task<T> = SimpleTask<T> | PromiseLikeTask<T>;
+export type CompatibleTask<T> = SimpleTask<T> | PromiseLikeTask<T>;
 
 /**
- * Perform an additional step in a {@link Future} lifecycle.
+ * A task to be performed in the future.
+ *  - {@link SimpleTask}s are the most common, and take no arguments (but may be
+ *    bound to a {@link CancelContext})
+ *  - {@link DirectTask}s are used when the {@link TaskContext} is needed.
+ *. - {@link PromiseLikeTask}s are used for compatibility with the `Promise` constructor.
+ */
+
+export type Task<T> = CompatibleTask<T> | DirectTask<T>;
+
+/**
+ * Perform an additional step in a {@link Future:type} lifecycle.
  */
 export type Continuation<T, R> = (task?: Future<T>) => R | PromiseLike<R>;
 /**
@@ -117,3 +144,42 @@ export enum TaskType {
      */
     DAEMON = 'DAEMON'
 }
+
+/**
+ * Options to the {@link Future} constructor.
+ */
+export interface FutureOptions {
+    /**
+     * Enable cancelation of the task.
+     */
+    cancel?: boolean;
+    /**
+     * Inject a delay (in milliseconds) after starting.
+     */
+    delay?: number;
+    
+    /**
+     * Time out the computation after this many milliseconds from when the
+     * task is started.
+     */
+    timeoutFromStart?: number;
+
+    /**
+     * Time out the computation after this many milliseconds from when the
+     * task is created.
+     */
+    timeoutFromNow?: number;
+
+    /**
+     * Message to include in the {@link TimeoutException}.
+     */
+    timeout_msg?: string;
+}
+
+/**
+ * A `Promise` that can be resolved or rejected from outside.
+ */
+export type ExternalizedPromise<T> = Promise<T> & {
+    resolve: (value: T | PromiseLike<T>) => void;
+    reject: (reason?: any) => void;
+};

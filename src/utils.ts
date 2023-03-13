@@ -5,7 +5,8 @@
 
 
 import type {Future} from './future';
-import type {UnixTime} from './types';
+import type {UnixTime, ExternalizedPromise, Millis} from './types';
+import {State} from "./state";
 
 /**
  * A FutureException is an exception that is thrown when a {@link Future} is cancelled or times out.
@@ -72,15 +73,36 @@ export const Throw = (e: any = new Error()) => {
 /**
  * Adapt a function that expects an object in the first position,
  * to one that expects the object as `this`.
- * 
+ *
  * If it is not an arrow function, or already bound to an object,
  * `this` will still be supplied.
- * 
+ *
  * @param f a function with at least one argument
- * @returns 
+ * @returns
  */
 export function withThis<T,R>(f: (thisArg: T, ...args: any) => R) {
     return function(this: T, ...args: any[]) {
         return f.call(this, this, ...args);
     }
 }
+
+export const externalizedPromise = <T>(): ExternalizedPromise<T> => {
+    let x_resolve: (value: any) => void;
+    let x_reject: (reason: any) => void;
+    const x_promise = new Promise((resolve, reject) => {
+        x_resolve = resolve;
+        x_reject = reject;
+        }) as ExternalizedPromise<T>;
+    x_promise.resolve = x_resolve!;
+    x_promise.reject = x_reject!;
+    return x_promise;
+}
+
+export const delay = (time: Millis) =>
+    new Promise((resolve) => setTimeout(resolve, time));
+
+export const isTerminalState = (state: State) =>
+    state === State.FULFILLED
+    || state === State.TIMEOUT
+    || state === State.CANCELLED
+    || state === State.REJECTED

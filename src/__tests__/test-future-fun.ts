@@ -2,7 +2,10 @@
  * Copyright 2023 by Bob Kerns. Licensed under MIT license.
  */
 
-import { Future, CancelContext, TimeoutException, withThis, CancelledException } from "..";
+import {
+    Future, CancelContext, TimeoutException,
+    withThis, CancelledException, State, delay
+} from "..";
 import { p_never } from "./tools";
 
 describe("Functional", () => {
@@ -55,7 +58,7 @@ describe("Functional", () => {
 
     describe("delay", () => {
         test("delay", async () => {
-            const f = Future.delay(100)(() => 1);
+            const f = new Future(() => 1, {delay: 100});
             expect(f.state).toBe('PENDING');
             const startTime = Date.now();
             expect(f.start().state).toBe('DELAY');
@@ -68,8 +71,8 @@ describe("Functional", () => {
     describe("timeout", () => {
         test("timeout", async () => {
             const createTime = Date.now();
-            const f = Future.timeout(100)(() => p_never);
-            await Future.delay(100)(() => 1);
+            const f = new Future(() => p_never, {timeoutFromStart: 100});
+            await delay(100);
             expect(f.state).toBe('PENDING');
             const startTime = Date.now();
             expect(f.start().state).toBe('RUNNING');
@@ -91,8 +94,8 @@ describe("Functional", () => {
     describe("timeoutFromNow", () => {
         test("timeoutFromNow", async () => {
             const createTime = Date.now();
-            const f = Future.timeoutFromNow(100)(() => p_never);
-            await Future.delay(50)(() => 1);
+            const f = new Future(() => p_never, {timeoutFromNow: 100});
+            await delay(50);
             expect(f.state).toBe('PENDING');
             const startTime = Date.now();
             expect(f.start().state).toBe('RUNNING');
@@ -117,5 +120,26 @@ describe("Functional", () => {
             expect(f.start().state).toBe('CANCELLED');
             await expect(f).rejects.toBeInstanceOf(CancelledException);
         });
+
+        test("cancel@PENDING", async () => {
+            const f = new Future<never>(() => p_never, {cancel: true});
+            expect(f.state).toEqual(State.PENDING);
+            f.cancel("hello")
+            expect(f.state).toBe('CANCELLED');
+
+            await expect(f).rejects.toBeInstanceOf(CancelledException);
+        });
+
+        test("cancel@SRUNNiNG", async () => {
+            const f = new Future<never>(() => p_never, {cancel: true});
+            expect(f.state).toEqual(State.PENDING);f
+            f.start();
+            expect(f.state).toEqual(State.RUNNING);
+            f.cancel("hello")
+            expect(f.state).toBe('CANCELLED');
+
+            await expect(f).rejects.toBeInstanceOf(CancelledException);
+        });
+
     });
 });

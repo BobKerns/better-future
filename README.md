@@ -44,13 +44,15 @@ states. The exact state diagram depends on whether [`Future.timeout`](api/classe
 [`.finally`(](api/classes/Future.html#finallu)),
 and [`.when`()](api/classes/Future.html#when) do not result in state changes.
 
-### `new Future`(_computation_)
+### `new Future`(_computation_, _options_)
 
 Creates a `Future` that will begin running _computation_ when `.then`() is called.
 
 _computation_: () => `any`
 
 On creation, the state will be _Pending_.
+
+The optional _options_ parameter can specify timeouts, an initial delay, and enable cancellation.
 
 ### _future_.`then`(_onFulfilled_, _onRejected_)
 
@@ -121,53 +123,18 @@ will be cancelled regardless.
 Registers _handler_ to be called when the `Future` is cancelled. _handler_ will receive a `Cancelled`
 error object, from which start and end times may be obtained.
 
-### _future_.`check`(_continuation_)
-
-Checks if the `Future` has been cancelled or timed out. Throws the corresponding
-`Cancelled` or `Timeout` exception if so. Otherwise, if _continuation_ is called,
-it will be called with the `Future` as an argument.
-
-It is an error to call this from anywhere but an ongoing `Future` task.
-
 ### _future_.`state`
 
 Returns one of:
 
 * `”PENDING”`
+* `"DELAY"`
 * `”RUNNING”`
+* `"PAUSED"`
 * `TIMEOUT`
 * `CANCELLED`
 * `”FULFILLED”`
 * `”REJECTED”`.
-
-### `Future`.`delay` (_ms_) (_computation_)
-
-Returns a function that when applied to a task, delays the task
-until a minimum of _ms_ milliseconds have passed.
-
-To immediately start the delay countdown:
-
-```javascript
-Future.delay(myComputation).start()
-```
-
-![State Diagram for delay](images/delay.svg)
-
-### `Future`.`timeout` (_ms_) (_computation_)
-
-Returns a function that when applied to a task, will return a
-`Future` that will time out that task _ms_ milliseconds after
-it is started.
-
-![State diagram with timeout](images/timeout.svg)
-
-### `Future`.`timeoutFromNow` (_ms_) (_computation_)
-
-Returns a function that when applied to a task, will return a
-`Future` that will time out that task
-_ms_ milliseconds from when when it enters the _Pending_ state.
-
-![State Diagram for Future.timeoutFromNow](images/timeoutFromNow.svg)
 
 ### `Future`.`resolve`(_value_)
 
@@ -242,9 +209,9 @@ Provides:
 * _ex_.`start`: The millisecond time when the `Future` was started (or created).
 * _ex_.`end`: The milllisecond time when the exception occured.
 
-### class Timeout
+### class TimeoutException
 
-When a `Future` is created with a timeout, it will fail with a `Timeout`
+When a `Future` is created with a timeout, it will fail with a `TimeoutException`
 exceeption.
 
 Inherits:
@@ -253,9 +220,9 @@ Inherits:
 * _ex_.`start`: The millisecond time when the Future was started (or created).
 * _ex_.`end`: The milllisecond time when the exception occured.
 
-### class Cancelled
+### class CancelledException
 
-When a `Future` is cancelled, it will fail with a `Cancelled`
+When a `Future` is cancelled, it will fail with a `CancelledException`
 exceeption.
 
 Inherits:

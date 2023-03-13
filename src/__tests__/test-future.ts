@@ -7,9 +7,6 @@ import { FutureState } from "../future-state";
 import { MethodSpec, is, isState, isStatic, isInstance, hasTag, p_never } from "./tools";
 
 const methods: Array<MethodSpec<Future<any>, typeof Future>> = [
-    {name: "delay", tags: ['static']},
-    {name: "timeout", tags: ['static']},
-    {name: "timeoutFromNow", tags: ['static']},
     {name: "resolve", tags: ['static']},
     {name: "reject", tags: ['static']},
     {name: "cancelled", tags: ['static']},

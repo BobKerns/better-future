@@ -13,7 +13,7 @@ export {Future} from "./future";
 
 export {
     TimeoutException, CancelledException, FutureException, FinishedException,
-    Throw, withThis
+    Throw, withThis, delay
 } from "./utils";
 
 export {State} from "./state";
@@ -21,7 +21,8 @@ export {State} from "./state";
 export type {
     Task as Task, Continuation, PromiseLikeTask, SimpleTask,
     OnFinally, OnFulfilled, OnRejected, OnStart, FailCallback,
-    UnixTime, Millis, TaskGroupOptions, TaskGroupResultType, TaskType
+    UnixTime, Millis, TaskGroupOptions, TaskGroupResultType,
+    TaskType, FutureOptions
 } from './types'
 
 export {TaskGroup} from './group';

@@ -4,25 +4,18 @@
  */
 
 import type {
-    SimpleTask, Task, Continuation,
-    FailCallback, Handler, Millis,
+    SimpleTask, Task,
+    FailCallback, Handler,
     OnFinally, OnFulfilled, OnRejected,
-    OnStart, UnixTime
+    OnStart, FutureOptions, DirectTask, PromiseLikeTask
     } from './types';
 import {State} from './state';
 import {FutureState} from './future-state';
-import { CancelledException,  TimeoutException, Throw } from './utils';
+import { CancelledException,  TimeoutException, delay, isTerminalState } from './utils';
+import { TaskContext } from './task-context';
 
 const isSimpleComputation = <T>(c: Task<T>): c is SimpleTask<T> =>
     c.length === 0;
-
-
-const simple = <T>(f: Task<T>): SimpleTask<T> =>
-    isSimpleComputation(f)
-        ? f
-        : () => new Promise((accept, reject) =>
-            f(accept, reject));
-
 
 /**
  * A {@link Future} is a taskill be performed in the future.
@@ -162,51 +155,66 @@ export class Future<T> {
      *
      * @param task
      */
-    constructor(task: Task<T>)  {
+    constructor(task: Task<T>);
+    constructor(task: Task<T>|DirectTask<T>, options: FutureOptions);
+    constructor(task: Task<T> | DirectTask<T>, options?: FutureOptions)  {
+        // Not in the signature—an internal-only usage.
         if (task instanceof Future) {
             const o = task;
             this.#s = o.#s;
             this.#promise = o.#promise;
         } else {
-            this.#s = new FutureState(this);
+            if (typeof task !== 'function') {
+                throw new TypeError('Task must be a function');
+            }
+            this.#s = new FutureState(this, options);
+            if (task.length > 0 && !options) {
+                this.#s.legacyTask = true;
+            }
+            const createTime = Date.now();
+            const timeout = (time: number | undefined) =>
+                    time === undefined || time <= 0
+                        ? undefined
+                    :  setTimeout(() => {
+                        const ex = new TimeoutException(this, options?.timeout_msg ?? "TIMEOUT");
+                        this.#resolved(State.TIMEOUT, this.#s.onTimeout, ex, ex);
+                    },
+                    time);
+            timeout(options?.timeoutFromNow)
             this.#promise = new Promise<T>((resolve, reject) => {
-                // Our internal task wraps the supplied one to handle
-                this.#s.fulfill = resolve;
-                this.#s.reject = reject;
-                this.#s.task = (): T | PromiseLike<T> => {
-                    this.#s.task = null;
+                this.#s.task = async (ctx: TaskContext<T>): Promise<void> => {
+                    this.#s.task = null; // Only run once.
+                    if (options?.delay) {
+                        this.#s.state = State.DELAY;
+                        await delay(options.delay);
+                    }
                     this.#s.state = State.RUNNING;
                     this.#s.startTime = Date.now();
                     this.#s.onStart?.(this.#s.startTime);
+                    timeout(options?.timeoutFromStart);
                     try {
-                        if (isSimpleComputation(task)) {
-                            const v = task.call(this.#s.context );
-                            resolve(v);
-                            return v;
+                        if (this.#s.legacyTask) {
+                            let t = task as PromiseLikeTask<T>;
+                            t(resolve, reject);
                         } else {
-                            task(resolve, reject);
-                            return undefined as T;
+                            let t = task as DirectTask<T>;
+                            resolve(await t.call(this.#s.context, this.#s.context));
+                            this.#s.state = State.FULFILLED;
                         }
                     } catch (e: unknown) {
                         // Not if this is already resolved.
-                        if (this.#s.state === State.RUNNING) {
+                        if (!isTerminalState(this.#s.state)) {
                             this.#s.exception = e as Error;
                             this.#s.state = State.REJECTED;
                         }
                         reject(e);
-                        return undefined as T;
                     }
                 };
-            })
-            .then(
-                (v: T|undefined) => this.#resolved(State.FULFILLED, undefined as any as Handler<T|undefined>, v, null),
-                (e) =>
-                    Throw(e instanceof TimeoutException<T>
-                            ? this.#resolved(State.TIMEOUT, this.#s.onTimeout, e, e)
-                            : e instanceof CancelledException<T>
-                                ? this.#resolved(State.CANCELLED, this.#s.onCancel!, e, e)
-                                : this.#resolved(State.REJECTED, null , e, e))
-            );
+            });
+            // Hook in timeouts and cancellation.
+           if (options?.cancel || options?.timeoutFromNow || options?.timeoutFromStart) {
+                this.#promise = Promise.race([this.#promise, this.#s.auxPromise]);
+           }
         }
     }
 
@@ -222,10 +230,12 @@ export class Future<T> {
      * @hidden
      */
     #resolved<T>(state: State, handler: Handler<T> | null | undefined, v: T, e: Error | null) {
-        this.#s.state = state;
-        this.#s.task = this.#s.onCancel = undefined;
-        this.#s.onTimeout = this.#s.onStart = undefined;
-        if (e) this.#s.exception = e;
+        if (!isTerminalState(this.#s.state)) {
+            this.#s.state = state;
+            if (e) this.#s.exception = e;
+        }
+        this.#s.task = null;
+        this.#s.auxPromise.reject(e);
         handler?.(v);
         return v;
     }
@@ -246,7 +256,7 @@ export class Future<T> {
      * @returns the new {@link Future} instance.
      */
     then<R,E>(onFulfilled: OnFulfilled<T,R>, onRejected: OnRejected<E>): Future<R|E> {
-        this.#s.task?.call(this.#s.context);
+        this.#s.task?.call(this.#s.context, this.#s.context);
         const next = new Future<R|E>(this as any as Task<R|E>);
         next.#promise = this.#promise.then(onFulfilled, onRejected);
         return next;
@@ -315,7 +325,7 @@ export class Future<T> {
      * @returns this {@link Future} instance.
      */
     start() {
-        this.#s.task?.call(this.#s.context);
+        this.#s.task?.call(this.#s.context, this.#s.context);
         return this;
     }
 
@@ -329,13 +339,16 @@ export class Future<T> {
      * to determine if they should continue running. If the {@link Future} is cancelled,
      * the {@link CancelContext#runable} will be rejected with
      * a {@link CancelledException} exception.
-     * 
+     *
      * Waiting on a {@link CancelContext#runable} also enables the
      * {@link Future#pause}/{@link Future#resume} functionality.
      *
+     * Cancellation must be enabled at the time of creation of the {@link Future}
+     * via the {@link FutureOptions#cancel} parameter.
+     *
      * If the state is post-{@link #RUNNING} (e.g. {@link #REJECTED} or {@link #FULFILLED})
      * this function does nothing.
-     * 
+     *
      * If the {@link Future} is cancelled, the {@link #onCancel} handlers are called.
      *
      * ![State Diagram for cancel()](../images/cancel.svg)
@@ -344,8 +357,10 @@ export class Future<T> {
      * @returns this {@link Future} instance.
      */
     cancel(msg : string | CancelledException<T> = "Cancelled") {
+        if (! this.#s.canCancel) {
+            throw new Error("Cancellation was not enabled for this Future.");
+        }
         let cancel = typeof msg === 'string' ? new CancelledException(this, msg ?? 'Cancelled', this.#s.startTime) : msg;
-        this.#s.reject!(cancel);
         this.#resolved(
             State.CANCELLED,
             this.#s.onCancel,
@@ -399,105 +414,11 @@ export class Future<T> {
 
     pause() {
         this.#s.pause();
-        
+
     }
 
     resume() {
         this.#s.resume();
-    }
-
-    /**
-     * Create a {@link Future} that will not start until the specified delay
-     * after the task is requested.
-     *
-     * To immediately start the delay countdown:
-     *
-     * ```javascript
-     * Future.delay(myComputation).start()
-     * ```
-     *
-     * Delay injects a delay into the {@link #RUNNING} state, so the task
-     * will not start until the delay has elapsed.
-     *
-     * ![State diagram for Future.delay](../images/delay.svg)
-     *
-     * @param delay the delay in milliseconds.
-     * @returns the delaed {@link Future}.
-     */
-    static delay(delay: Millis): <T>(a: Task<T>) => Future<T> {
-        return <T>(task: Task<T>) => {
-            const future: Future<T> = new Future<T>(async () => {
-                const p = new Promise((resolve, reject) => setTimeout(resolve, delay));
-                const f: SimpleTask<T> = simple(task);
-                future.#s.state = State.DELAY;
-                await p;
-                future.#s.state = State.RUNNING;
-                return f.call(future.#s.context);
-            });
-            return future;
-        };
-    }
-
-    /**
-     * Create a {@link Future} that will time out _timeout_ milliseconds after
-     * the task is started.
-     *
-     * ![State diagram for Future.timeoutFromNow](../../images/timeoutFromNow.svg)
-     *
-     * @param timeout the timeout in milliseconds.
-     * @param msg An optional message to be used in the {@link TimeoutException} exception.
-     * @returns the timed {@link Future}
-     */
-    static timeoutFromNow(timeout: Millis, msg = "Timeout") {
-        const msg_dflt = msg;
-        return <T>(task: Task<T>, msg: string = msg_dflt) => {
-            const start = Date.now();
-            let future: Future<T>;
-            const p = new Promise<TimeoutException<T>>((resolve, reject) =>
-                setTimeout(() => reject(new TimeoutException(future, msg)), timeout)
-            ).catch(e => (future.#s.onTimeout?.(e), Throw(e)));
-            // Start the timer now
-            future = new Future<T>(async (): Promise<T> => {
-                const c = Promise.resolve<T>(future.#s.call(simple(task))).then(
-                    (v) => ((future.#s.onTimeout = null), v)
-                );
-                return await Promise.race([c, p]) as T;
-            });
-            return future;
-        };
-    }
-
-    /**
-     * Create a {@link Future} that will time out _timeout_ milliseconds after creation,
-     * regardless of when or if the result is requested.
-     *
-     * ![State diagram for Future.timeout](../../images/timeout.svg)
-     *
-     * @param timeout the timeout in milliseconds.
-     * @param msg  An optional message to be used in the {@link TimeoutException} exception.
-     * @returns  the timed {@link Future}.
-     */
-    static timeout(timeout: Millis, msg: string = "Timeout") {
-        const msg_dflt = msg;
-        return <T>(task: Task<T>, msg: string = msg_dflt) => {
-            const tmsg = msg ?? msg_dflt;
-            const future: Future<T> = new Future<T>(async (): Promise<T> => {
-                // Start the timer when the Future executes.
-                const start = Date.now();
-                const p = new Promise<TimeoutException<T>>((resolve, reject) =>
-                    setTimeout(() => reject(new TimeoutException<T>(future, tmsg, start)), timeout)
-                ).catch((e) => {
-                    future.#s.onTimeout?.(e);
-                    throw e;
-                });
-                const f = simple(task);
-                const c: Promise<T> = Promise.resolve(future.#s.call(f)).then(
-                    (v) => ((future.#s.onTimeout = null), v)
-                );
-                return await Promise.race([p, c]) as T;
-            });
-            return future;
-        };
     }
 
     /**
@@ -542,7 +463,7 @@ export class Future<T> {
      * @returns
      */
     static cancelled<T>(c: CancelledException<T> | string = 'Cancelled'): Future<T> {
-        return new Future<T>(() => Future.never<T>()).cancel(c ?? 'Cancelled');
+        return new Future<T>(() => Future.never<T>(), {cancel: true}).cancel(c ?? 'Cancelled');
     }
 
     /**

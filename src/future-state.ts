@@ -3,148 +3,124 @@
  * Copyright 2023 by Bob Kerns. Licensed under MIT license.
  */
 
-import type { SimpleTask, StartCallback, FailCallback, UnixTime } from "./types";
+import type { UnixTime, ExternalizedPromise, FutureOptions} from "./types";
 import type { Future } from './future'
 import { State } from "./state";
-import { TimeoutException, CancelledException, FinishedException } from "./utils";
+import { TimeoutException, CancelledException, FinishedException, externalizedPromise } from "./utils";
 import { TaskContext } from "./task-context";
 
 
 /**
- * Internal shared state of a {@link Future}. This is the shared state of all
- * {@link Future} instances that are derived from a single task
+ * Internal shared state of a {@link Future:type}. This is the shared state of all
+ * {@link Future:type} instances that are derived from a single task
  * @hidden
  */
 export class FutureState<T> {
     // The initial Future
     #head: Future<T>;
-    fulfill?: (value: T) => void;
-    reject?: (e: any) => void;
+
+
+// The task to be performed, or null if it is already started or no longer eligible.
+    task?: null | ((ctx: TaskContext<T>) => Promise<void>);
+
+    legacyTask?: boolean;
+
+    #auxPromise?: ExternalizedPromise<TaskContext<T>>;
+    get auxPromise() {
+        if (this.#auxPromise) {
+            return this.#auxPromise;
+        }
+        return this.#auxPromise = externalizedPromise();
+    }
+
+    #canCancel: boolean = false;
+    get canCancel() {
+        return this.#canCancel;
+    }
+
+    /**
+     * The {@link TaskContext} to supply to the task.
+     */
     #context?: TaskContext<T>;
 
+    /**
+     * Get or create the {@link TaskContext} for this task.
+     * @returns The {@link TaskContext} for this task.
+     */
     get context(): TaskContext<T> {
         if (!this.#context) {
-            this.#context = new TaskContext(this.#head, this);
+            return this.#context = new TaskContext(this.#head, this);
         }
         return this.#context!
     }
 
-    // The task to be performed, or null if it is already started or no longer eligible.
-    task?: SimpleTask<T> | null;
     // The Promise that handles OnStart handlers.
-    #onStartPromise?: Promise<UnixTime>;
-    #onStart?: StartCallback | null;
-    #ensureStartPromise() {
+    #onStartPromise?: ExternalizedPromise<UnixTime>;
+    get onStartPromise() {
         if (!this.#onStartPromise) {
-            this.#onStartPromise = new Promise<UnixTime>(resolve => {
-                this.#onStart = resolve;
-            });
-            if (this.startTime) {
-                this.#onStart?.(this.startTime);
-            }
+            this.#onStartPromise = externalizedPromise();
+        }
+        if (this.startTime !== undefined) {
+            this.#onStartPromise.resolve(this.startTime);
         }
         return this.#onStartPromise;
     }
-    get onStartPromise() {
-        return this.#ensureStartPromise();
-    }
-
-    // the fulfilled handler for the OnStart promise.
-    // Called when the task is started.
-    get onStart(): StartCallback | undefined {
-        // null implies this handler is now irrelevant.
-        if (this.#onStart === null) {
-            return undefined;
-        }
-        this.#ensureStartPromise();
-        return this.#onStart;
-    }
-
-    set onStart(onStart: StartCallback | null | undefined) {
-        this.#onStart = onStart;
+    get onStart() {
+        return this.onStartPromise?.resolve;
     }
 
     // The Promise that handles OnTimeout handlers.
-    #onTimeoutPromise?: Promise<TimeoutException<T>>;
-    #onTimeout?: FailCallback<TimeoutException<T>> | null;
-    #ensureTimeoutPromise() {
+    #onTimeoutPromise?: ExternalizedPromise<TimeoutException<T>>;
+    get onTimeoutPromise() {
         if (!this.#onTimeoutPromise) {
-            this.#onTimeoutPromise = new Promise<TimeoutException<T>>(
-                (resolve, reject) => (this.#onTimeout = resolve)
-            );
-            if (this.startTime) {
-                this.#onStart?.(this.startTime);
+            this.#onTimeoutPromise = externalizedPromise();
+            if (this.exception instanceof TimeoutException) {
+                this.#onTimeoutPromise.resolve(this.exception);
             }
         }
         return this.#onTimeoutPromise;
     }
-
-    get onTimeoutPromise() {
-        return this.#ensureTimeoutPromise();
+    get onTimeout() {
+        return this.#onTimeoutPromise?.resolve;
     }
 
-    // the fulfilled handler for the OnTimeout promise
-    // Called when the task times out.
-    get onTimeout(): FailCallback<TimeoutException<T>> | undefined {
-        // null implies this handler is now irrelevant.
-        if (this.#onTimeout === null) {
-            return undefined;
-        }
-        this.#ensureTimeoutPromise();
-        return this.#onTimeout;
-    }
-
-    set onTimeout(onTimeout: FailCallback<TimeoutException<T>> | null | undefined) {
-        this.#onTimeout = onTimeout;
-    }
-
-    // The Promise that handles OnCancel handlers.
-    #onCancelPromise?: Promise<CancelledException<T>>;
-    #onCancel?: FailCallback<CancelledException<T>> | null;
-    #ensureCancelPromise() {
+    #onCancelPromise?: ExternalizedPromise<CancelledException<T>>;
+    get onCancelPromise() {
         if (!this.#onCancelPromise) {
-            this.#onCancelPromise = new Promise<CancelledException<T>>(
-                (resolve, reject) => (this.#onCancel = resolve)
-            );
+            this.#onCancelPromise = externalizedPromise();
+        }
+        if (this.exception instanceof CancelledException) {
+            this.#onCancelPromise.resolve(this.exception);
         }
         return this.#onCancelPromise;
     }
-
-    get onCancelPromise() {
-        return this.#ensureCancelPromise();
+    get onCancel() {
+        return this.#onCancelPromise?.resolve;
     }
-
-    // The fulfilled handler for the OnCancel promise
-    // Called when the task is cancelled.
-    get onCancel(): FailCallback<CancelledException<T>> | undefined {
-        // null implies this handler is now irrelevant.
-        if (this.#onCancel === null) {
-            return undefined;
-        }
-        this.#ensureCancelPromise();
-        return this.#onCancel;
-    }
-
-    set onCancel(onCancel: FailCallback<CancelledException<T>> | undefined | null) {
-        this.#onCancel = onCancel;
-    }
-
-    //
-    startTime?: UnixTime;
-    //
-    exception?: Error;
-    // The current state of the Future
-    state: State = State.PENDING;
 
     /**
-     * Handler to resolve the {@link #pausePromise}
+     * The time at which the task was started.
      */
-    #resume?: (v: TaskContext<T>) => void;
+    startTime?: UnixTime;
+
+    /**
+     * Exception to be passed along.
+     */
+    exception?: Error;
+
+    /** The current state of the task. */
+    state: State = State.PENDING;
 
     /**
      * The `Promise` to resolve to resume the task
      */
-    #pausePromise?: Promise<TaskContext<T>>;
+    #pausePromise?: ExternalizedPromise<TaskContext<T>>;
+    get pausePromise() {
+        if (!this.#pausePromise) {
+            this.#pausePromise = externalizedPromise();
+        }
+        return this.#pausePromise;
+    }
 
     /**
      * The level of pause nesting.
@@ -153,8 +129,9 @@ export class FutureState<T> {
 
 
     // Create an initialize the shared state.
-    constructor(head: Future<T>) {
+    constructor(head: Future<T>, options?: FutureOptions) {
         this.#head = head;
+        this.#canCancel = options?.cancel ?? false;
     }
 
     /**
@@ -174,7 +151,9 @@ export class FutureState<T> {
             case State.RUNNING:
                 return Promise.resolve(this.context);
             case State.PAUSED:
-                return this.#pausePromise!;
+                return this.#auxPromise
+                    ? Promise.race([this.#auxPromise, this.#pausePromise!])
+                    : this.#pausePromise!;
             case State.TIMEOUT:
             case State.CANCELLED:
                 return Promise.reject(this.exception);
@@ -186,11 +165,15 @@ export class FutureState<T> {
     #setPause() {
         this.state = State.PAUSED;
         if (this.#pauseLevel === 1) {
-            this.#pausePromise = new Promise<TaskContext<T>>((resolve) => {
-                this.#resume = resolve;
-            });
+            this.#pausePromise = externalizedPromise()
         }
     }
+
+    /**
+     * Pause the task. The task will be resumed when {@link #resume} is called.
+     * The task may be paused multiple times, but each call to {@link #resume}
+     * must be balanced with a call to {@link #pause}.
+     */
     pause() {
         this.#pauseLevel++;
         if (this.state === State.RUNNING) {
@@ -198,17 +181,30 @@ export class FutureState<T> {
         }
     }
 
+    /**
+     * Resume the task. The task will be resumed when if an equal number of calls
+     * to {@link #pause} and {@link #resume} have been made.
+     */
     resume() {
         if (this.#pauseLevel > 0) {
             this.#pauseLevel--;
             if (this.#pauseLevel === 0 && this.state === State.PAUSED) {
                 this.state = State.RUNNING;
-                this.#resume?.(this.context);
+                const p = this.pausePromise;
+                this.#pausePromise = undefined;
+                p.resolve(this.context);
+            } else if (this.#pauseLevel < 0) {
+                throw new Error("Unbalanced pause/resume");
             }
         }
     }
 
-    call(f: SimpleTask<T>) {
-        return f.call(this.context);
+    /**
+     * Cancel the current task.
+     * @param msg Optional message to include in the exception
+     * @returns
+     */
+    cancel(msg = "Cancelled") {
+        return this.#head.cancel(msg);
     }
 }
