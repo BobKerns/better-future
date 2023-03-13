@@ -18,7 +18,7 @@
     "postbuild": "npm run build:docs",
     "clean": "rm -rf build lib docs",
     "prepublishOnly": "NODE_ENV=production npm run build",
-    "build:svg": "mkdir -p build/docs/api && ([ -e build/docs/api/images ] || ln -s build/docs/images build/docs/api/images) && for f in src/images/*.mmd; do devtools/atomic convert add \"$f\" & done; wait",
+    "build:svg": "mkdir -p build/docs/api && ln -sf build/docs/images build/docs/api/images && for f in src/images/*.mmd; do devtools/atomic convert add \"$f\" & done; wait",
     "build:md": "for f in README.md; do devtools/atomic convert add \"$f\" & done; wait",
     "build:docs": "GRAPHVIZ_DOT=\"$(which dot)\" typedoc ${OPTIONS} --out build/docs/api src/",
     "postbuild:docs": "npm run build:svg && npm run build:md",
