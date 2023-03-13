@@ -74,8 +74,7 @@ const isSimpleComputation = <T>(c: Task<T>): c is SimpleTask<T> =>
  *
  * ![Diagram of basic states](../images/basic-states.svg)
  *
- * Timeouts are layered on top of the basic {@link Future} states above. The exact diagram
- * depends on whether {@link #timeout} or {@link #timeoutAfter} is used.
+ * This is the full unkfied set of states; a given use will use only a subset of these.
 */
 export class Future<T> {
     /**

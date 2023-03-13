@@ -10,6 +10,7 @@ or not performed at all when they may not be needed.
 A {@link Future} can be in one of these states:
 
 * {@link #PENDING}: The initial state. The task has not yet been started.
+* {@link #DELAY}: Started, but waiting for the requested delay.
 * {@link #RUNNING}: The task has been started, but has neither returned nor
   thrown an exception. This corresponds to the _Pending_ state in a `Promise`.
 * {@link #PAUSED}: A pause in the task has been requested.

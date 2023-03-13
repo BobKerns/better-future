@@ -14,7 +14,7 @@ export enum State {
      */
     PENDING = 'PENDING',
     /**
-     * The {@link Future} was started with {@link Future.delay},
+     * The {@link Future} was started with {@link FutureOptions#delay},
      * has been started, but the delay has not yet expired.
      * The task will not be started until the delay expires.
      */
@@ -53,8 +53,8 @@ export enum State {
      * The task has timed out and been rejected.
      * The task may still be running, but the result will be ignored.
      *
-     * @see {@link Future.timeout}
-     * @see {@link Future.timeoutFromNow}
+     * @see {@link FutureOptions#timeoutFromStart}
+     * @see {@link FutureOptions#timeoutFromNow}
      * @see {@link Future#onTimeout}
      */
     TIMEOUT = 'TIMEOUT',
