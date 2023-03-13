@@ -9,7 +9,7 @@ import type {UnixTime, ExternalizedPromise, Millis} from './types';
 import {State} from "./state";
 
 /**
- * A FutureException is an exception that is thrown when a {@link Future} is cancelled or times out.
+ * A FutureException is an exception that is thrown when a {@link Future:type} is cancelled or times out.
  */
 export class FutureException<T> extends Error {
     /**
@@ -18,12 +18,12 @@ export class FutureException<T> extends Error {
     future?: Future<T>;
 
     /**
-     * The time the {@link Future} was started.
+     * The time the {@link Future:type} was started.
      */
     startTime: UnixTime;
 
     /**
-     * The time the {@link Future} was cancelled or timed out.
+     * The time the {@link Future:type} was cancelled or timed out.
      */
     endTime: UnixTime;
     constructor(future: Future<T>, msg: string, start?: UnixTime, end?: UnixTime) {
