@@ -1,87 +1,174 @@
 stateDiagram-v2
     direction LR
 
+    classDef terminal fill:yellow
+    classDef resolution fill:orange,stroke:orange
+    classDef wait fill:lightpink
+    classDef execute fill:lightgreen
+
     state if_start <<choice>>
     state if_resolved <<choice>>
+    state if_delay <<choice>>
+    state if_run <<choice>>
+    state pre_run <<choice>>
 
-    [*] --> Pending
+    state timer_1 <<fork>>
+    note right of timer_1 : Conditionally enable timeout timer
+    state timer_2 <<fork>>
+    note left of timer_2 : Conditionally enable timeout timer
+    state timer_join <<join>>
+    note left of timer_join
+        If either timer gets here before Running,
+        the task is timed out
+    end note
+
+    [*] --> timer_1
+    timer_1 --> Pending
+    timer_1 --> FromNowTimer : [fromNowTimeout > 0]
     Pending --> if_start
-    if_start --> Running : .then()
-    if_start --> Running : .start()
+    if_start --> if_delay : .then()/.start()
+    if_delay --> pre_run : delay = 0
+    pre_run --> timer_2
+    if_delay --> Delay : delay > 0
+    Delay --> if_run
+    if_run --> pre_run
+    if_run --> Cancelled : [cancel]
     if_start --> Cancelled : [cancel]
 
-    Running --> if_resolved
+    FromNowTimer --> timer_join
+    Timeout --> Rejected
+
+    timer_2 --> Running
+    timer_2 --> FromStartTimer : [fromStartTimeout > 0]
+    FromStartTimer --> timer_join
+
+    note right of Running
+        Work Happens Here
+        Green box is the task function
+        pink boxes are wait states
+        Orange are terminal states
+        Yellow are extended terminal states
+    end note
+
+    Running --> timer_join
+    timer_join --> if_resolved
     if_resolved --> state=FULFILLED : task returns
     if_resolved --> state=REJECTED : task throws
+    if_resolved --> Timeout : [timeout]
     if_resolved --> Cancelled : [cancel]
 
     state=FULFILLED --> Fulfilled
     state=REJECTED --> Rejected
-    
+    state=FULFILLED:::resolution
+    state=REJECTED:::resolution
+
     Cancelled --> Rejected
 
     state Pending {
-      [*] --> state=PENDING
-      state=PENDING --> Wait_pending
-      Wait_pending --> [*] : .then()
-      Wait_pending --> [*] : .start()
-      Wait_pending --> [*] : [cancel]
-      Wait_pending : Wait
+        [*] --> state=PENDING
+        state=PENDING --> Wait_pending
+        Wait_pending --> [*] : .then()
+        Wait_pending --> [*] : .start()
+        Wait_pending --> [*] : [cancel]
+        Wait_pending : Wait
     }
 
+    note left of Pending
+        Freshly-created Futures stay here
+        until .then() or .start() is called.
+        The task function is not called yet.
+    end note
+
+    note right of if_start
+        Wait for .then() or .start()
+    end note
+
+    state Delay {
+        [*] --> state=DELAY
+        state=DELAY --> Wait_delay
+        Wait_delay --> [*]
+        Wait_delay : Wait
+    }
+
+    note left of Delay
+        Optional DELAY state
+    end note
+
     state Running {
-      state if_pause <<choice>>
-      state if_more <<choice>>
-      state if_end <<choice>>
+        direction LR
+        state if_pause <<choice>>
+        state if_more <<choice>>
+        state if_end <<choice>>
 
-      [*] --> NotifyStarted
-      NotifyStarted --> if_pause
-      if_pause --> Run : pause = 0
-      if_pause --> Paused : pause > 0
-      Run --> if_more
-      if_more --> Paused : pause > 0
-      if_more --> Run : pause = 0
-      if_more --> [*] : [rejected]
-      if_more --> [*] : [fulfilled]
-      Paused --> if_end
-      if_end --> [*] : [rejected]
-      if_end --> [*] : [fulfilled]
-      if_end --> if_pause : pause = 0
-      NotifyStarted : Notify onStart
+        state state=RUNNING_1 : state=RUNNING
 
-      state Run {
-        [*] --> state=RUNNING
-        state=RUNNING --> Execute
-        Execute --> [*] : [rejected]
-        Execute --> [*] : [fulfilled]
-        Execute --> [*] : [pause > 0]
-        Execute : Execute task
-      }
+        [*] --> state=RUNNING_1
+        state=RUNNING_1 --> NotifyStarted
+        NotifyStarted --> Run
+        if_pause --> Run : pause = 0
+        if_pause --> Paused : pause > 0
+        Run --> if_more
+        if_more --> Paused : pause > 0
+        if_more --> Run : pause = 0
+        if_more --> [*] : [rejected]
+        if_more --> [*] : [fulfilled]
+        Paused --> if_end
+        if_end --> [*] : [rejected]
+        if_end --> [*] : [fulfilled]
+        if_end --> if_pause : pause = 0
+        NotifyStarted : Notify onStart
 
-      state Paused {
-        [*] --> state=PAUSED
-        state=PAUSED --> Wait
-        Wait --> [*] : pause = 0
-        Wait --> [*] : [rejected]
-        Wait --> [*] : [fulfilled]
-      }
+        state Run {
+            [*] --> state=RUNNING
+            state=RUNNING --> Execute
+            Execute --> [*] : [rejected]
+            Execute --> [*] : [fulfilled]
+            Execute --> [*] : [pause > 0]
+            Execute : Execute task
+        }
+
+        state Paused {
+            [*] --> state=PAUSED
+            state=PAUSED --> Wait
+            Wait --> [*] : pause = 0
+            Wait --> [*] : [rejected]
+            Wait --> [*] : [fulfilled]
+        }
     }
 
     state Fulfilled {
-      [*] --> NotifyFulfilled
-      NotifyFulfilled --> [*]
-      NotifyFulfilled : Notify onFullfilled
+        [*] --> NotifyFulfilled
+        NotifyFulfilled --> [*]
+        NotifyFulfilled : Notify onFullfilled
     }
 
     state Rejected {
-      [*] --> NotifyRejected
-      NotifyRejected --> [*]
-      NotifyRejected : Notify onRejected
+        [*] --> NotifyRejected
+        NotifyRejected --> [*]
+        NotifyRejected : Notify onRejected
     }
 
     state Cancelled {
-      [*] --> state=CANCELLED
-      state=CANCELLED --> NotifyCancelled
-      NotifyCancelled --> [*]
-      NotifyCancelled : Notify onCancelled
+        [*] --> state=CANCELLED
+        state=CANCELLED --> NotifyCancelled
+        NotifyCancelled --> [*]
+        NotifyCancelled : Notify onCancelled
     }
+
+    state Timeout {
+        [*] --> state=TIMEOUT
+        state=TIMEOUT --> NotifyTimeout
+        NotifyTimeout --> [*]
+    }
+
+class Timeout terminal
+class Cancelled terminal
+class Fulfilled resolution
+class Rejected resolution
+class state=FULFILLED resolution
+class state=REJECTED resolution
+class Wait_pending wait
+class Wait wait
+class FromNowTimer wait
+class FromStartTimer wait
+class Execute execute
