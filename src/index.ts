@@ -21,9 +21,10 @@ export {State} from "./state";
 export type {
     Task as Task, Continuation, PromiseLikeTask, SimpleTask,
     OnFinally, OnFulfilled, OnRejected, OnStart, FailCallback,
-    UnixTime, Millis, TaskGroupOptions, TaskGroupResultType,
-    TaskType, FutureOptions
+    UnixTime, Millis, TaskGroupOptions,  FutureOptions
 } from './types'
+
+export {TaskGroupResultType, TaskType} from './enums';
 
 export {TaskGroup} from './group';
 

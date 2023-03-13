@@ -4,8 +4,8 @@
  */
 
 import type {Future} from './future';
-import type { TaskGroup } from './group';
 import type { TaskContext } from './task-context';
+import type { TaskGroupResultType } from './enums';
 
 /**
  * Signature for a sipmle task, which is a function of no arguments that returs a value or a promise.
@@ -105,14 +105,7 @@ export type FailCallback<E extends Error> = (e: E | PromiseLike<E>) => void;
 /**
  * A callback for when the future has been started.
  */
-export type StartCallback = (time: UnixTime) => void;
-
-export enum TaskGroupResultType {
-    FIRST = 'FIRST',
-    ALL = 'ALL',
-    ANY = 'ANY',
-    ALL_SETTLED = 'ALL_SETTLED'
-}
+export type StartCallback = (tme: UnixTime) => void;
 
 export interface TaskGroupOptions<RT extends TaskGroupResultType> {
     resultType: RT;
@@ -120,29 +113,6 @@ export interface TaskGroupOptions<RT extends TaskGroupResultType> {
     name?: string;
 
     timeout?: number;
-}
-
-/**
- * The type of task being added to a {@link TaskGroup}.
- */
-export enum TaskType {
-    /**
-     * A normal task is one that is expected to complete normally,
-     * and whose value may contribute to the result of the group.
-     */
-    NORMAL = 'NORMAL',
-
-    /**
-     * A background task is one that is expected to complete normallly
-     * with the group, but does not contribute to the result of the group.
-     */
-    BACKGROUND = 'BACKGROUND',
-
-    /**
-     * A daemon task is one that is expected to run indefinitely, and
-     * should be cancelled when the group is finished.
-     */
-    DAEMON = 'DAEMON'
 }
 
 /**

@@ -5,7 +5,8 @@
 
 import {Future} from './future';
 import { State } from './state';
-import { TaskGroupResultType, TaskGroupOptions, TaskType } from './types';
+import { TaskGroupResultType, TaskType } from './enums';
+import type { TaskGroupOptions } from './types';
 import { CancelledException, TimeoutException } from './utils';
 
 const todo = () => { throw new Error('TODO'); };
