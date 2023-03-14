@@ -26,6 +26,6 @@ export type {
 
 export {TaskGroupResultType, TaskType} from './enums';
 
-export {TaskGroup} from './group';
+export {TaskGroup} from './task-group';
 
 export {TaskContext as CancelContext} from './task-context';

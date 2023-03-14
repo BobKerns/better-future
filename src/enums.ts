@@ -3,7 +3,7 @@
  * Copyright 2023 by Bob Kerns. Licensed under MIT license.
  */
 
-import type { TaskGroup } from "./group";
+import type { TaskGroup } from "./task-group";
 
 /**
  * How the results of a {@link TaskGroup} are combined and
