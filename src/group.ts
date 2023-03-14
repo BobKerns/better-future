@@ -24,7 +24,10 @@ type TaskGroupResult<RT extends TaskGroupResultType, T> =
  * and managed as a group. Cancelling the group will cancel all of the tasks in the group
  * that have not yet completed. A timeout can be specified for the group, in which case
  * the group will after the timeout expires, and all the tasks in the group will be
- * timed out as well.
+ * timed out as well.s
+ * 
+ * A {@link TaskGroup} is itself a {@link Future}, and can be used as a task in another
+ * context, assigned to a {@link TaskPool} or another {@link TaskGroup}.
  *
  * The result type of the group is specified when the group is created, and can be one
  * of `FIRST`, `ALL`, `ANY`, or `ALL_SETTLED`. The result type determines the type of
