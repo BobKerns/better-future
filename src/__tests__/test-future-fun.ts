@@ -3,7 +3,7 @@
  */
 
 import {
-    Future, CancelContext, TimeoutException,
+    Future, TaskContext, TimeoutException,
     withThis, CancelledException, State, delay
 } from "..";
 import { p_never } from "./tools";
@@ -11,14 +11,14 @@ import { p_never } from "./tools";
 describe("Functional", () => {
 
     test('Future.runnable runnable', async () => {
-        let c: CancelContext<any>;
-        const f = new Future(withThis((ctx: CancelContext<any>) => (c = ctx))).start();
+        let c: TaskContext<any>;
+        const f = new Future(withThis((ctx: TaskContext<any>) => (c = ctx))).start();
         expect(f.state).toEqual('RUNNING');
         return expect(await c!.runable).toBe(c!);
     });
     test('Future.runnable late access', async () => {
-        let c: CancelContext<any>;
-        const f = new Future(withThis((ctx: CancelContext<any>) => (c = ctx))).start();
+        let c: TaskContext<any>;
+        const f = new Future(withThis((ctx: TaskContext<any>) => (c = ctx))).start();
         await f;
         return expect(c!.runable).rejects.toBeInstanceOf(Error);
     });

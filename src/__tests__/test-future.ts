@@ -2,7 +2,7 @@
  * Copyright 2023 by Bob Kerns. Licensed under MIT license.
  */
 
-import { CancelContext, Future, Throw, TimeoutException, withThis } from "..";
+import { TaskContext, Future, Throw, TimeoutException, withThis } from "..";
 import { FutureState } from "../future-state";
 import { MethodSpec, is, isState, isStatic, isInstance, hasTag, p_never } from "./tools";
 

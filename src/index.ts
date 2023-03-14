@@ -28,4 +28,4 @@ export {TaskGroupResultType, TaskType} from './enums';
 
 export {TaskGroup} from './task-group';
 
-export {TaskContext as CancelContext} from './task-context';
+export {TaskContext} from './task-context';

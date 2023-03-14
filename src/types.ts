@@ -46,7 +46,7 @@ export type CompatibleTask<T> = SimpleTask<T> | PromiseLikeTask<T>;
 /**
  * A task to be performed in the future.
  *  - {@link SimpleTask}s are the most common, and take no arguments (but may be
- *    bound to a {@link CancelContext})
+ *    bound to a {@link TaskContext})
  *  - {@link DirectTask}s are used when the {@link TaskContext} is needed.
  *. - {@link PromiseLikeTask}s are used for compatibility with the `Promise` constructor.
  */

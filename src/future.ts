@@ -80,13 +80,13 @@ const isSimpleComputation = <T>(c: Task<T>): c is SimpleTask<T> =>
 export class Future<T> {
     /**
      * Shared state
-     * @hidden
+     * @internal
      */
     #s: FutureState<T>;
 
     /**
      * The promise that will be resolved when the task is complete.
-     * @hidden
+     * @internal
      */
     #promise: Promise<any>;
 
@@ -239,7 +239,7 @@ export class Future<T> {
      * @param e The exception to record
      * @returns the value.
      *
-     * @hidden
+     * @internal
      */
     #resolved<T>(state: State, handler: Handler<T> | null | undefined, v: T, e: Error | null) {
         if (!isTerminalState(this.#s.state)) {
@@ -346,13 +346,13 @@ export class Future<T> {
      * to {@link #CANCELLED}, and calling the {@link #onCancel} handlers, if any.
      * The {@link Future} is rejected with a {@link CancelledException} exception.
      *
-     * Cancellation-aware computations receive a {@link CancelContext} object via
-     * `this` when they are invoked. They should await on {@link CancelContext#runable}
+     * Cancellation-aware computations receive a {@link TaskContext} object via
+     * `this` when they are invoked. They should await on {@link TaskContext#runable}
      * to determine if they should continue running. If the {@link Future} is cancelled,
-     * the {@link CancelContext#runable} will be rejected with
+     * the {@link TaskContext#runable} will be rejected with
      * a {@link CancelledException} exception.
      *
-     * Waiting on a {@link CancelContext#runable} also enables the
+     * Waiting on a {@link TaskContext#runable} also enables the
      * {@link Future#pause}/{@link Future#resume} functionality.
      *
      * Cancellation must be enabled at the time of creation of the {@link Future}
