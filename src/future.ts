@@ -356,9 +356,6 @@ export class Future<T> {
      * @returns this {@link Future} instance.
      */
     cancel(msg : string | CancelledException<T> = "Cancelled") {
-        if (! this.#s.canCancel) {
-            throw new Error("Cancellation was not enabled for this Future.");
-        }
         let cancel = typeof msg === 'string' ? new CancelledException(this, msg ?? 'Cancelled', this.#s.startTime) : msg;
         this.#resolved(
             State.CANCELLED,
