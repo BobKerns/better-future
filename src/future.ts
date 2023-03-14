@@ -413,11 +413,12 @@ export class Future<T> {
 
     pause() {
         this.#s.pause();
-
+        return this;
     }
 
     resume() {
         this.#s.resume();
+        return this;
     }
 
     /**
