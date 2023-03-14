@@ -11,6 +11,7 @@ import type { TaskPool } from './task-pool';
 /**
  * Signature for a sipmle task, which is a function of no arguments that returs a value or a promise.
  * The context is passed as `this`, to avoid ambiguity with {@link PromiseLikeTask}s.
+ * @internal
  */
 export type SimpleTask<T> =
     ((this: TaskContext<T>) => T | PromiseLike<T>)
@@ -19,6 +20,7 @@ export type SimpleTask<T> =
 /**
  * A task that accepts the {@link TaskContext} as an argument.  This signature can be used if the
  * _options_ argument to {@link Future} is supplied.
+ * @internal
  */
 export type DirectTask<T> =
     ((ctx: TaskContext<T>) => T);
@@ -27,6 +29,7 @@ export type DirectTask<T> =
  * A task that takes callbacks for success and failure.  This signature can be used if the
  * _options_ argument to {@link Future} is not supplied.
  * It is primarily for compatibility with the `Promise` constructor.
+ * @internal
  */
 export type PromiseLikeTask<T> =
     (
@@ -36,6 +39,7 @@ export type PromiseLikeTask<T> =
 
 /**
  * A task to be performed in the future, compatible with `Promise`.
+ * @internal
  */
 export type CompatibleTask<T> = SimpleTask<T> | PromiseLikeTask<T>;
 

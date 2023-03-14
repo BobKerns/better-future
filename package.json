@@ -20,7 +20,7 @@
     "prepublishOnly": "NODE_ENV=production npm run build",
     "build:svg": "for f in src/images/*.mmd; do devtools/atomic convert add \"$f\" & done; wait",
     "build:md": "for f in README.md; do devtools/atomic convert add \"$f\" & done; wait",
-    "build:docs": "GRAPHVIZ_DOT=\"$(which dot)\" typedoc ${OPTIONS} --out build/docs/api src/",
+    "build:docs": "GRAPHVIZ_DOT=\"$(which dot)\" typedoc ${OPTIONS} --excludeInternal --out build/docs/api src/",
     "postbuild:docs": "npm run build:svg && npm run build:md",
     "serve": "npm run build:links && NODE_ENV=development SERVE=true serve",
     "predocs": "npm run build:docs && for f in README.md src/images/*.mmd; do devtools/atomic convert check \"$f\" & done; wait",

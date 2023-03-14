@@ -10,12 +10,25 @@ import { FutureState } from "./future-state";
  */
 export class TaskContext<T> {
     #future: Future<T>;
+    /**
+     * @internal
+     */
     #s: FutureState<T>;
+
+    /**
+     * 
+     * @param future 
+     * @param s 
+     */
     constructor(future: Future<T>, s: FutureState<T>) {
         this.#future = future;
         this.#s = s;
     }
 
+    /**
+     * Awaiting on this promise will wait for the task to be eligible to run,
+     * or raise an exception if the task should temrinate.
+     */
     get runable() {
         return this.#s.runable;
     }

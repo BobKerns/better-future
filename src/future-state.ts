@@ -13,7 +13,7 @@ import { TaskContext } from "./task-context";
 /**
  * Internal shared state of a {@link Future:type}. This is the shared state of all
  * {@link Future:type} instances that are derived from a single task
- * @hidden
+ * @internal
  */
 export class FutureState<T> {
     // The initial Future
