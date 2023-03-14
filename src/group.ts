@@ -6,8 +6,9 @@
 import {Future} from './future';
 import { State } from './state';
 import { TaskGroupResultType, TaskType } from './enums';
-import type { TaskGroupOptions } from './types';
+import type { TaskGroupOptions, FutureOptions, Task } from './types';
 import { CancelledException, TimeoutException } from './utils';
+import { TaskPool } from './task-pool';
 
 const todo = () => { throw new Error('TODO'); };
 
@@ -62,6 +63,8 @@ export class TaskGroup<RT extends TaskGroupResultType, T> extends Future<TaskGro
 
     #timeout?: number;
 
+    #pool?: TaskPool;
+
     #normal_tasks = new Set<Future<TaskGroupResult<RT, T>>>();
 
     #background_tasks = new Set<Future<any>>();
@@ -74,10 +77,16 @@ export class TaskGroup<RT extends TaskGroupResultType, T> extends Future<TaskGro
     static #groups = new Array<WeakRef<TaskGroup<any, any>>>();
 
     /**
-     * The list of all {@link TaskGroup}s that have been created but not garbate ollected.
+     * The list of all {@link TaskGroup}s that have been created but not garbage ollected.
      */
     get groups() {
         return TaskGroup.#groups.map(r => r.deref()).filter(v => v !== undefined);
+    }
+
+    #forall(f: (v: Future<any>) => void) {
+        this.#normal_tasks.forEach(f);
+        this.#background_tasks.forEach(f);
+        this.#daemon_tasks.forEach(f);
     }
 
     /**
@@ -87,22 +96,22 @@ export class TaskGroup<RT extends TaskGroupResultType, T> extends Future<TaskGro
     * * `name` - The name of the group. Defaults to a generated unique name.
     * * `timeout` - The number of milliseconds to wait before timing out the group. `undefined`
     *    means no timeout.
+    * * `pool` - The {@link TaskPool} to use for running the tasks in the group. If not specified,,
+    *   no pool will be used.
     *
     * @param options a {@link TaskGroupOptions} object.
     */
-    constructor({ resultType, name, timeout }: TaskGroupOptions<RT>) {
+    constructor({ resultType, name, timeout, pool }: TaskGroupOptions<RT>) {
         super(
             (fulfilled: (v: TaskGroupResult<RT, T> | PromiseLike<TaskGroupResult<RT, T>>) => void,
                 rejected: (e?: any) => void) => {
                 this.#fullfilled = fulfilled;
                 this.#rejected = rejected;
-                const forall = (f: (v: Future<any>) => void) => {
-                    this.#normal_tasks.forEach(f);
-                    this.#background_tasks.forEach(f);
-                    this.#daemon_tasks.forEach(f);
+                this.onCancel(e => this.#forall(t => t.cancel(e as CancelledException<unknown>)));
+                this.onTimeout(e => this.#forall(t => t.forceTimeout(e as TimeoutException<unknown>)));
+                if (this.#pool) {
+                    this.onStart(() => this.#forall(t => this.#pool?.add(t)))
                 }
-                this.onCancel(e => forall(t => t.cancel(e as CancelledException<unknown>)));
-                this.onTimeout(e => forall(t => t.forceTimeout(e as TimeoutException<unknown>)));
                 switch (this.#result_type) {
                     case TaskGroupResultType.FIRST:
                         this.onStart(() =>
@@ -132,10 +141,64 @@ export class TaskGroup<RT extends TaskGroupResultType, T> extends Future<TaskGro
         this.when(canceller, canceller)
         TaskGroup.#groups.push(new WeakRef(this));
     }
-
+ 
+    /**
+     * Add a task, creating a future for it.
+     * @param task 
+     * @param type The type of task (defaults to {@link TaskType.NORMAL}}})
+     * @param options The {@link FutureOptions} for the created {@link Future}.
+     * @returns The {@link TaskGroup} for chaining.
+     */
+    add(task: Task<T>, type: TaskType.NORMAL, options?: FutureOptions): this;
+    /**
+     * Add a task, creating a future for it.
+     * @param task  
+     * @param type The type of task (defaults to {@link TaskType.NORMAL}}})
+     * @param options The {@link FutureOptions} for the created {@link Future}.
+     * @returns The {@link TaskGroup} for chaining.
+     */
+    add<X>(task: Task<X>, type: TaskType.BACKGROUND|TaskType.DAEMON, options?: FutureOptions): this;
+    /**
+     * Add a background or daemon task, creating a future for it.
+     * @param task 
+     * @param options The {@link FutureOptions} for the created {@link Future}.
+     * @returns The {@link TaskGroup} for chaining.
+     */
+    add(task: Task<T>, options?: FutureOptions): this;                                     
+    /**
+     * Add a background or daemon task.
+     *  
+     * @param task The {limk Future} to add to the group. Any `PromiseLike` can be used with
+     *             limited functionality.
+     * @param type The tpe of task to add. Defaults to {@link TaskType.NORMAL}.
+     * @returns The {@link TaskGroup} for chaining.
+     */
     add<X>(task: PromiseLike<X>, type: TaskType.BACKGROUND|TaskType.DAEMON): this;
+    /*
+     * Add a {@link TaskType.NORMAL} task.
+     *
+     * @param task The {limk Future} to add to the group. Any `PromiseLike` can be used with
+     *            limited functionality.
+     * @param type The tpe of task to add. Defaults to {@link TaskType.NORMAL}.
+     * @Breeturns The {@link TaskGroup} for chaining.
+     */
     add(task: PromiseLike<TaskGroupResult<RT, T>>, type?: TaskType.NORMAL): this;
-    add(task: PromiseLike<any>, type: TaskType = TaskType.NORMAL): this {
+    /**
+     * Implementation of {@link TaskGroup.add}.
+     * 
+     * @param task
+     * @param type 
+     * @param options 
+     * @returns 
+     */
+    add<X>(task: PromiseLike<any>|Task<T|X>, type: TaskType|FutureOptions = TaskType.NORMAL, options?: FutureOptions): this {
+        if (typeof task === 'function') {
+            if (typeof type === 'object') {
+                options = type;
+                
+            }
+            task = new Future(task, options!);
+        }
         const f = Future.resolve(task);
         switch (type) {
             case TaskType.BACKGROUND:
@@ -149,18 +212,26 @@ export class TaskGroup<RT extends TaskGroupResultType, T> extends Future<TaskGro
         }
         switch (this.state) {
             case State.PENDING:
+                // We will add the task to the pool when we start.
+                break;
             case State.RUNNING:
             case State.PAUSED:
             case State.DELAY:
                 // not terminating yet. Just add the task.
+                if (this.#pool) {
+                    this.#pool.add(f);
+                }
                 break;
-            case State.FULFILLED:
-            case State.REJECTED:
             case State.TIMEOUT:
                 this.catch((e: any) => {
                     f.cancel(e);
                     throw e as TimeoutException<TaskGroupResult<RT, T>>;
                 });
+                break;
+            case State.FULFILLED:
+            case State.REJECTED:
+                // Already terminated. Cancel the tasks.
+                this.#forall(t => t.cancel());
                 break;
             case State.CANCELLED:
                 this.catch((e: any) => {

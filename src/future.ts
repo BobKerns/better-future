@@ -13,6 +13,7 @@ import {State} from './state';
 import {FutureState} from './future-state';
 import { CancelledException,  TimeoutException, delay, isTerminalState } from './utils';
 import { TaskContext } from './task-context';
+import { TaskPool } from './task-pool';
 
 const isSimpleComputation = <T>(c: Task<T>): c is SimpleTask<T> =>
     c.length === 0;
@@ -99,6 +100,18 @@ export class Future<T> {
      */
     get state() {
         return this.#s.state;
+    }
+
+    #pool?: TaskPool;
+    get pool(): TaskPool | undefined { 
+        return this.#pool;
+    }
+
+    set pool(pool: TaskPool | undefined) {
+        if (this.#pool) {
+            throw new Error(`Future already has been assigned to pool ${this.#pool.name}`);
+        }
+        this.#pool = pool;
     }
 
     /**

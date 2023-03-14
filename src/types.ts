@@ -6,6 +6,7 @@
 import type {Future} from './future';
 import type { TaskContext } from './task-context';
 import type { TaskGroupResultType } from './enums';
+import type { TaskPool } from './task-pool';
 
 /**
  * Signature for a sipmle task, which is a function of no arguments that returs a value or a promise.
@@ -113,6 +114,8 @@ export interface TaskGroupOptions<RT extends TaskGroupResultType> {
     name?: string;
 
     timeout?: number;
+
+    pool?: TaskPool;
 }
 
 /**
