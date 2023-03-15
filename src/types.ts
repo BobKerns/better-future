@@ -217,13 +217,15 @@ export type ReducerGroup<T, R> = TaskGroup<TaskGroupResultType.REDUCE, T, R>;
  *   let sum = 0;
  *   let count = 0;
  *   while (true) {
- *      const [v, idx, state] = yield;
- *      if (idx === -1) {
- *         return sum / count;
- *     }
- *      // We ignore timed-out tasks.
- *      if (state === State.TIMEOUT) continue;
- *      if (state !== State.FULFILLED) throw v;
+ *    try {
+ *       const [v, idx] = yield;
+ *       if (idx === -1) {
+ *          return sum / count;
+ *      } catch (e: unknown) {
+ *        // We ignore timed-out tasks.
+ *          if (e instanceof TimeoutException === State.TIMEOUT) continue;
+ *        if (state !== State.FULFILLED) throw v;
+ *      }
  *      sum += v;
  *      count += 1;
  *   }
