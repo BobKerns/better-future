@@ -19,9 +19,10 @@ export {
 export {State} from "./state";
 
 export type {
-    Task as Task, Continuation, PromiseLikeTask, SimpleTask,
+    Task, PromiseLikeTask, SimpleTask,
     OnFinally, OnFulfilled, OnRejected, OnStart, FailCallback,
-    UnixTime, Millis, TaskGroupOptions,  FutureOptions
+    UnixTime, Millis, TaskGroupOptions,  FutureOptions,
+    RejectedState, TerminalState
 } from './types'
 
 export {TaskGroupResultType, TaskType} from './enums';
@@ -29,3 +30,5 @@ export {TaskGroupResultType, TaskType} from './enums';
 export {TaskGroup} from './task-group';
 
 export {TaskContext} from './task-context';
+
+export { arithmetic_mean, Statistics, statistics } from './reducers';

@@ -13,7 +13,7 @@ export enum TaskGroupResultType {
     /**
      *  The first task to complete is returned, and the others are cancelled.
      */
-    FIRST = 'FIRST',    
+    FIRST = 'FIRST',
     /**
      * The first rejecion, othetwise an array of all results (in order of adding
      * to the group)). The first rejection cancells all others.
@@ -26,8 +26,14 @@ export enum TaskGroupResultType {
     ANY = 'ANY',
     /**
      * An array of all results (in order of adding to the group).
-     */ 
-    ALL_SETTLED = 'ALL_SETTLED'
+     */
+    ALL_SETTLED = 'ALL_SETTLED',
+    /**
+     * The result of applying a reducer function to the results of all tasks
+     * as they complete. This can result in significantly less memor usage,
+     * as there is no need to retain all results simultaneously.
+     */
+    REDUCE = 'REDUCE'
 }
 
 /**

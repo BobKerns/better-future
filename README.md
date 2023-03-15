@@ -1,12 +1,45 @@
 # better-future: Better handling of deferred task compatible with Promises
 
-A general-purpose package for managing deferred or parallel tasks. Features include:
+A general-purpose package for managing deferred or parallel tasks. Main features include:
+
+## Futures
 
 * 100% compatible with `Promise` API.
 * Lazy evaluation
 * Cancellation
 * Pause/resume
-* Awaitable task groups
+* Initial delay
+* Implemented on top of Javascript `Promise` implementation. Does not reinvent the wheel,
+  helping to ensure consistent semantics.
+
+## Task groups
+
+* _Awaitaable_: You can `await` completion (or failure) of the combined set of tasks.
+* _Background tasks_: These do not directly contribute to the task result, but should
+  complete before the task completes.
+* _Daemon Tasks_: These do not directly contribute to the task result, but should be
+  terminated when the task resolves.
+* _Filters_ strip down large data early, miimizing memory usage.
+* _Data aggregation- (map/reduce). Reducers can often accumulate results in O(1) space.
+  * For example, average, RMS/quadratic mean, standard deviation (population & sample), bincount
+
+## Task pools
+
+* Task pools limit simultaneous execution, with its impact
+  on memory usage and latency.
+* Combined with an initial delay, can achieve a form of rate limiting.
+* Very useful for web scraping applications.
+
+## Possible future additions
+
+### Infinite tasks
+
+These would produce an async generator. These would be useful for monitoring real-time event streams,
+calciulating things like moving averages.
+
+## `Promise`-based publish/subscribe
+
+Combined with Infinite tasks_, this would allow multiple consumers of an event stream
 
 ## Motivation
 
@@ -26,6 +59,9 @@ But your asynchronous task will return a `Promise`, and your consumers of that a
 awaiting consumers when results are available.
 
 In short, we need something very much like a `Promise`, but for a future result.
+
+When you do this at scale, you find you need features like timeouts, cancellation, aggregation of results,
+resource management, memory optimization, etc.
 
 ## A note about terminology
 
@@ -50,7 +86,7 @@ The key terms here:
 ## Basic API
 
 The familiar `Promise` API is here, including the static methods such as `Promise.race`. A [`Future`](api/classes/Future.html) implements `.then()`, `.catch()`, and `.finally()`, and thus can be used
-anywhere a `Promise` can be. 
+anywhere a `Promise` can be.
 
 The [`Future`](api/classes/Future.html) API includes two key additions: [`.start()`](api/classes/Future.html#start) and
 [`.when()`](api/classes/Future.html#when).

@@ -5,8 +5,10 @@
 
 import type {Future} from './future';
 import type { TaskContext } from './task-context';
-import type { TaskGroupResultType } from './enums';
+import { TaskGroupResultType } from './enums';
 import type { TaskPool } from './task-pool';
+import { TaskGroup } from './task-group';
+import { State } from './state';
 
 /**
  * Signature for a sipmle task, which is a function of no arguments that returs a value or a promise.
@@ -50,13 +52,8 @@ export type CompatibleTask<T> = SimpleTask<T> | PromiseLikeTask<T>;
  *  - {@link DirectTask}s are used when the {@link TaskContext} is needed.
  *. - {@link PromiseLikeTask}s are used for compatibility with the `Promise` constructor.
  */
-
 export type Task<T> = CompatibleTask<T> | DirectTask<T>;
 
-/**
- * Perform an additional step in a {@link Future:type} lifecycle.
- */
-export type Continuation<T, R> = (task?: Future<T>) => R | PromiseLike<R>;
 /**
  * A handler for a value produced by a task.
  */
@@ -112,16 +109,51 @@ export type FailCallback<E extends Error> = (e: E | PromiseLike<E>) => void;
  */
 export type StartCallback = (tme: UnixTime) => void;
 
-export interface TaskGroupOptions<RT extends TaskGroupResultType> {
-    resultType: RT;
+type NonReduceOptions = Exclude<TaskGroupResultType, TaskGroupResultType.REDUCE>;
 
+interface BaseTypeGroupOptions<RT extends TaskGroupResultType> {
+    resultType: RT;
+    /**
+     * Name for the task group.
+     */
     name?: string;
 
+    /**
+     * If supplied,the task group will time out if it does not complete within this
+     * duration (in milliseconds).
+     */
     timeout?: number;
 
+    /**
+     * If supplied, the task group and all of its member tasks will be added to this pool.
+     */
     pool?: TaskPool;
 }
 
+
+type ReduceTaskGroupOptions<R, T> = {
+    resultType: TaskGroupResultType.REDUCE;
+    reducer: ReducerSpec<R,T>;
+};
+
+/**
+ * Options for a {@link TaskGroup}. A {@link TaskGroupResultType.REDUCE} task group
+ * has additional options.
+ */
+export type TaskGroupOptions<R, T, RT extends TaskGroupResultType> =
+    RT extends TaskGroupResultType.REDUCE
+    ? BaseTypeGroupOptions<RT> & ReduceTaskGroupOptions<R, T>
+    : RT extends NonReduceOptions
+    ? BaseTypeGroupOptions<RT>
+    : never;
+
+const foo: TaskGroupOptions<number, number, TaskGroupResultType> = {
+    resultType: TaskGroupResultType.REDUCE,
+    reducer: null as unknown as ReducerSpec<number, number>,
+    name: 'cat'
+};
+
+console.log(foo);
 /**
  * Options to the {@link Future} constructor.
  */
@@ -134,7 +166,7 @@ export interface FutureOptions {
      * Inject a delay (in milliseconds) after starting.
      */
     delay?: number;
-    
+
     /**
      * Time out the computation after this many milliseconds from when the
      * task is started.
@@ -160,3 +192,53 @@ export type ExternalizedPromise<T> = Promise<T> & {
     resolve: (value: T | PromiseLike<T>) => void;
     reject: (reason?: any) => void;
 };
+
+/**
+ * A terminal state other than {State#FULFILLED}.
+ */
+export type RejectedState = State.REJECTED | State.CANCELLED | State.TIMEOUT;
+/**
+ * Any terminal state. This includes {@link State.CANCELLED} and {@link State.TIMEOUT},
+ * as these are recorded as their final state, despite transitioning to {@link State.REJECTED}.
+ */
+export type TerminalState = State.FULFILLED | RejectedState;
+
+/**
+ * A {@link TaskGroup} that holds tasks pefroming a map operationk and which
+ * will apply a {@link Reducer} function to aggregate the results.
+ * @typeparam T The type of the value returned by the tasks.
+ */
+export type ReducerGroup<T, R> = TaskGroup<TaskGroupResultType.REDUCE, T, R>;
+
+/**
+ *
+ * ```typescript
+ * function *arithmetic_mean(group: ReduceGroup<number>) {
+ *   let sum = 0;
+ *   let count = 0;
+ *   while (true) {
+ *      const [v, idx, state] = yield;
+ *      if (idx === -1) {
+ *         return sum / count;
+ *     }
+ *      // We ignore timed-out tasks.
+ *      if (state === State.TIMEOUT) continue;
+ *      if (state !== State.FULFILLED) throw v;
+ *      sum += v;
+ *      count += 1;
+ *   }
+ * }
+ *
+ */
+export type  Reducer<T, R> = Generator<undefined, R, [T, number]>;
+
+/**
+ * A function that produces a {@link Reducer} for a {@link ReducerGroup}.
+ */
+export type ReducerFn<A, T, R> = (group: ReducerGroup<T, R>, ...args: A[]) => Reducer<T, R>;
+
+/**
+ * The {@link TaskGroupOptions#reducer} parameter can be a {@link ReducerFn} or an array
+ * of the form `[ReducerFn, ...args]`.
+ */
+export type ReducerSpec<T, R, A extends any[] = any[]> = ReducerFn<[], T, R> | [ReducerFn<A, T, R>, ...A]
