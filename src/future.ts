@@ -103,7 +103,7 @@ export class Future<T> {
     }
 
     #pool?: TaskPool;
-    get pool(): TaskPool | undefined { 
+    get pool(): TaskPool | undefined {
         return this.#pool;
     }
 
