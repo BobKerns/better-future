@@ -32,7 +32,7 @@ const methods: Array<MethodSpec<Future<any>, typeof Future>> = [
 describe("Basic", () => {
     // Check for broken p_never
     test("p_never", async () => {
-        const p = new Promise((resolve, reject) => 
+        const p = new Promise((resolve, reject) =>
             setTimeout(resolve, 100));
         await Promise.race([p, p_never.then(() => Throw("never happened"))]);
     });
@@ -43,7 +43,7 @@ describe("Basic", () => {
         test("Future is a constructor", () =>
                 expect(Future.prototype)
                 .toBeInstanceOf(Object));
-        describe("Static Methods", () => 
+        describe("Static Methods", () =>
             test.each(methods
                 .filter(isStatic))
             (
@@ -54,22 +54,24 @@ describe("Basic", () => {
         describe('Instance Methods', () => {
             const f: Future<number> = new Future(() => 1);
             test('InstanceOfFuture', () => expect(f).toBeInstanceOf(Future));
-            test.each(methods
-                .filter(isInstance)
-                .map(m => ({name: m.name, value: f[m.name] }))
-            )
-            (`Method Future.$name`, ({value}) =>
-                expect(value).toBeInstanceOf(Function));
+            return test.each(methods
+                .filter(isInstance))
+            (
+                `Method Future.$name`,
+                 m =>
+                    expect(f[m.name]).toBeInstanceOf(Function));
         });
 
         describe("Instance fields", () => {
             const f: Future<number> = new Future(() => 1).start();
-            test.each(methods
+            return test.each(methods
                 .filter(hasTag('field'))
                 .map(m => ({name: m.name, value: m.type?.(f[m.name as keyof typeof f] )}))
             )
-            (`Field Future.$name`, ({value}) =>
-                expect(value).toBeTruthy());
+            (
+                `Field Future.$name`,
+                 ({value}) =>
+                    expect(value).toBeTruthy());
 
              // Future.runnable should error if accessed before start.
              // It should only be accessed from a running task.
