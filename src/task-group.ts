@@ -74,10 +74,14 @@ export class TaskGroup<
         T = F,
         R extends TaskGroupResult<RT, T, TaskGroupResult<RT, T, any>>
             = TaskGroupResult<RT, T, TaskGroupResult<RT, T, any>>
-            > extends Future<R>{
+            > extends Future<R>
+{
     #result_type: RT;
 
-    #name: string
+    #name?: string
+    get name() {
+        return this.#name ?? (this.#name = `TaskGroup-${TaskGroup.#counter++}`);
+    }
 
     #rejected?: (e?: any) => void;
 
@@ -217,6 +221,13 @@ export class TaskGroup<
                     this.pool = pool;
                     this.onCancel(e => this.#forall(t => t.cancel(e as CancelledException<unknown>)));
                     this.onTimeout(e => this.#forall(t => t.forceTimeout(e as TimeoutException<unknown>)));
+
+                    this.#result_type = (resultType  as RT ?? Throw(new Error(`"resultType is a required parameter`)));
+                    this.#name = name ?? `TaskGroup-${TaskGroup.#counter++}`;
+                    let canceller = () =>
+                        this.#daemon_tasks.forEach(t => t.cancel());
+                    this.when(canceller, canceller)
+
                     if (resultType === TaskGroupResultType.REDUCE) {
                         const {reducer} = others as Partial<TaskGroupOptions<TaskGroupResultType.REDUCE, F, T, R>>;
                         if (reducer && typeof reducer !== 'function') {
@@ -239,12 +250,9 @@ export class TaskGroup<
                     cancel: true
                 }
             );
-        this.#result_type = (resultType  as RT ?? Throw(new Error(`"resultType is a required parameter`)));
-        this.#name = name ?? `TaskGroup-${TaskGroup.#counter++}`;
-        let canceller = () =>
-            this.#daemon_tasks.forEach(t => t.cancel());
-        this.when(canceller, canceller)
-        TaskGroup.#groups.push(new WeakRef(this));
+
+            this.#result_type = (resultType  as RT ?? Throw(new Error(`"resultType is a required parameter`)));
+            TaskGroup.#groups.push(new WeakRef(this));
     }
 
     /**
