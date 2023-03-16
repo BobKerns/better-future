@@ -107,6 +107,82 @@ export class TaskGroup<RT extends TaskGroupResultType, F, T = F, R = T> extends 
         this.#daemon_tasks.forEach(f);
     }
 
+    #run(fulfilled: (v: T | T[] | PromiseSettledResult<T>[] | R) => void, rejected: (e?: any) => void) {
+        switch (this.#result_type) {
+            case TaskGroupResultType.FIRST:
+                this.onStart(() =>
+                    Promise.race(this.#normal_tasks).then(fulfilled as (v: T) => void, rejected));
+                break;
+            case TaskGroupResultType.ALL:
+                this.onStart(() =>
+                    Promise.all(this.#normal_tasks).then(fulfilled as (v: T[]) => void, rejected));
+                break;
+            case TaskGroupResultType.ANY:
+                this.onStart(() =>
+                    Promise.any(this.#normal_tasks).then(fulfilled as (v: T) => void, rejected));
+                break;
+            case TaskGroupResultType.ALL_SETTLED:
+                this.onStart(() =>
+                    Promise.allSettled(this.#normal_tasks)
+                        .then(fulfilled as (v: PromiseSettledResult<T>[]) => void, rejected));
+                break;
+            case TaskGroupResultType.REDUCE:
+                let count = this.#normal_tasks.size;
+                let idx = 0;
+                this.#normal_tasks.forEach(t => {
+                    const tidx = idx++;
+                    /**
+                     * When there are no more tasks to resolve, extract the resdult
+                     * from the reducer.
+                     */
+                    const finalize = async () => {
+                        try {
+                            const result = await this.#reducer?.next([undefined as T, -1]);
+                            fulfilled(result as R);
+                        } catch (e) {
+                            rejected(e);
+                        }
+                    }
+
+                    /**
+                     * Accept a fulfilled value from the task
+                     * @param v The fulfillment value of the task.
+                     */
+                    const acceptor =async  (v: T) => {
+                        try {
+                            await this.#reducer?.next([v, tidx]);
+                            if (--count === 0) {
+                                finalize();
+                            }
+                        } catch (e) {
+                            rejected(e);
+                        }
+                    };
+
+                    /**
+                     * Accept a rejected value from the task by throwing into
+                     * the reducer. If the Reducer handles it, we continue.
+                     * If it does not catch it or passes it on, we reject now.
+                     * @param e The rejection reason of the task.
+                     */
+                    const rejector = async (e: any) => {
+                        try {
+                            await this.#reducer?.throw(e);
+                            if (--count === 0) {
+                                finalize();
+                            }
+                        } catch (e) {
+                            rejected(e);
+                        }
+                    };
+                    t.then(acceptor, rejector);
+                });
+                break;
+            default:
+                throw new Error(`Unknown result type ${this.#result_type}`);
+        }
+    }
+
     /**
     * Construct a new {@link TaskGroup} with the specified options.
     *

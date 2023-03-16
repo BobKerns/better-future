@@ -6,7 +6,7 @@
 import type { TaskGroup } from "./task-group";
 
 /**
- * How the results of a {@link TaskGroup} are combined and
+ * How the results of a {@link TaskGroup:type} are combined and
  * how and when the group itself is resolved.
  */
 export enum TaskGroupResultType {

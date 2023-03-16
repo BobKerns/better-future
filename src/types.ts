@@ -20,8 +20,8 @@ export type SimpleTask<T> =
     | (() => T | PromiseLike<T>);
 
 /**
- * A task that accepts the {@link TaskContext} as an argument.  This signature can be used if the
- * _options_ argument to {@link Future} is supplied.
+ * A task that accepts the {@link TaskContext:type} as an argument.  This signature can be used if the
+ * _options_ argument to {@link Future:type} is supplied.
  * @internal
  */
 export type DirectTask<T> =
@@ -29,7 +29,7 @@ export type DirectTask<T> =
 
 /**
  * A task that takes callbacks for success and failure.  This signature can be used if the
- * _options_ argument to {@link Future} is not supplied.
+ * _options_ argument to {@link Future:type} is not supplied.
  * It is primarily for compatibility with the `Promise` constructor.
  * @internal
  */
@@ -48,8 +48,8 @@ export type CompatibleTask<T> = SimpleTask<T> | PromiseLikeTask<T>;
 /**
  * A task to be performed in the future.
  *  - {@link SimpleTask}s are the most common, and take no arguments (but may be
- *    bound to a {@link TaskContext})
- *  - {@link DirectTask}s are used when the {@link TaskContext} is needed.
+ *    bound to a {@link TaskContext:type})
+ *  - {@link DirectTask}s are used when the {@link TaskContext:type} is needed.
  *. - {@link PromiseLikeTask}s are used for compatibility with the `Promise` constructor.
  */
 export type Task<T> = CompatibleTask<T> | DirectTask<T>;

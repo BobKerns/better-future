@@ -76,6 +76,8 @@ const isSimpleComputation = <T>(c: Task<T>): c is SimpleTask<T> =>
  * ![Diagram of basic states](../../images/basic-states.svg)
  *
  * This is the full unkfied set of states; a given use will use only a subset of these.
+ *
+ * @typeparam T The type of the value returned by the futre if fulfilled.
 */
 export class Future<T> {
     /**
