@@ -229,9 +229,6 @@ export class Future<T> {
            if (options?.cancel || options?.timeoutFromNow || options?.timeoutFromStart) {
                 this.#promise = Promise.race([this.#promise, this.#s.auxPromise]);
            }
-           // Supply subclasses with acess to the context. Workaround for lack of
-           // protected fields
-           options?._contextCallback?.(this.#s.context);
         }
     }
 

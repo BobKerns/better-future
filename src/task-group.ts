@@ -6,8 +6,12 @@
 import {Future} from './future';
 import { State } from './state';
 import { TaskGroupResultType, TaskType } from './enums';
-import type { TaskGroupOptions, FutureOptions, Task, ReducerFn, Reducer, ReducerGroup } from './types';
-import { CancelledException, TimeoutException, Throw } from './utils';
+import type {
+    TaskGroupOptions, FutureOptions, Task,
+    ReducerFn, Reducer, TaskGroupResult,
+    
+} from './types';
+import { CancelledException, TimeoutException, Throw, withThis } from './utils';
 import { TaskPool } from './task-pool';
 import { TaskContext } from './task-context';
 
@@ -15,13 +19,6 @@ const todo = () => { throw new Error('TODO'); };
 
 type TaskGroupFulfilled<RT extends TaskGroupResultType, R>
     = (v: TaskGroupResult<RT, R> | PromiseLike<TaskGroupResult<RT, R>>) => void;
-
-type TaskGroupResult<RT extends TaskGroupResultType, T> =
-    RT extends TaskGroupResultType.FIRST ? T
-    : RT extends TaskGroupResultType.ALL ? T[]
-    : RT extends TaskGroupResultType.ANY ? T
-    : RT extends TaskGroupResultType.ALL_SETTLED ? PromiseSettledResult<T>[]
-    : never;
 
 /**
  *
@@ -57,13 +54,31 @@ type TaskGroupResult<RT extends TaskGroupResultType, T> =
  *   of `rejected`, and a `reason` property containing the rejection reason. If a task
  *   is fulfilled, the corresponding settlement object will have a `status` of `fulfilled`,
  *   and a `value` property containing the fulfillment value.
+ *
+ * @typeParam RT - The result type of the group. One of `FIRST`, `ALL`, `ANY`, or `ALL_SETTLED`.
+ * @typeParam F - The type of the value returned by the {@link TaskType.NORMAL}
+ *                 tasks in the group, prior to addition of a filter.
+ * @typeParam T - The type of the value returned by the {@link TaskType.NORMAL} + filter.
+ *                If no filter is specified, this is the same as `F`.
+ * @typeParam R - The type of the value returned by the group. If the result type is
+ *                {@link TaskGroupResultType.REDUCE}, this is the type of the value
+ *                returned by the reducer. If {@link TaskGroupResultType.FIRST} or
+ *                {@link TaskGroupResultType.ANY}, this is the same as `T`.
+ *                If {@link TaskGroupResultType.ALL}, it will be `T[]`
+ *                If {@link TaskGroupResultType.ALL_SETTLED}, it will be
+ *                `PromiseSettledResult<T>[]`
  **/
-export class TaskGroup<RT extends TaskGroupResultType, F, T = F, R = T> extends Future<TaskGroupResult<RT, R>> {
+export class TaskGroup<
+        RT extends TaskGroupResultType,
+        F,
+        T = F,
+        R extends TaskGroupResult<RT, T, TaskGroupResult<RT, T, any>>
+            = TaskGroupResult<RT, T, TaskGroupResult<RT, T, any>>
+            > extends Future<R>{
     #result_type: RT;
 
-    #name: string;
+    #name: string
 
-    #fullfilled?: (v: TaskGroupResult<RT, R> | PromiseLike<TaskGroupResult<RT, R>>) => void;
     #rejected?: (e?: any) => void;
 
     #timeout?: number;
@@ -87,8 +102,6 @@ export class TaskGroup<RT extends TaskGroupResultType, F, T = F, R = T> extends 
     #filter?: (v: F) => T;
 
     #reducer?: Reducer<T, R>;
-
-    #context?: TaskContext<R>;
 
     static #counter: number = 0;
 
@@ -196,80 +209,38 @@ export class TaskGroup<RT extends TaskGroupResultType, F, T = F, R = T> extends 
     *
     * @param options a {@link TaskGroupOptions} object.
     */
-    constructor({ resultType, name, timeout, pool, ...others }: TaskGroupOptions<RT, F, T, R>) {
-        super(
-            (fulfilled: TaskGroupFulfilled<RT, R>,
-                rejected: (e?: any) => void) => {
-                this.#fullfilled = fulfilled;
-                this.#rejected = rejected;
-                this.pool = pool;
-                this.onCancel(e => this.#forall(t => t.cancel(e as CancelledException<unknown>)));
-                this.onTimeout(e => this.#forall(t => t.forceTimeout(e as TimeoutException<unknown>)));
-                if (resultType === TaskGroupResultType.REDUCE) {
-                    const {reducer} = others as Partial<TaskGroupOptions<TaskGroupResultType.REDUCE, F, T, R>>;
-                    //const {reducer} = o;
-                    if (reducer && typeof reducer !== 'function') {
-                        this.#reducer = reducer[0](this.#context!, ...reducer.slice(1));
+    constructor({ resultType, name, pool, ...others }: TaskGroupOptions<RT, F, T, R>) {
+        super(  
+            withThis((ctx: TaskContext<R>) =>
+                new Promise<R>((fulfilled, rejected) => {
+                    this.#rejected = rejected;
+                    this.pool = pool;
+                    this.onCancel(e => this.#forall(t => t.cancel(e as CancelledException<unknown>)));
+                    this.onTimeout(e => this.#forall(t => t.forceTimeout(e as TimeoutException<unknown>)));
+                    if (resultType === TaskGroupResultType.REDUCE) {
+                        const {reducer} = others as Partial<TaskGroupOptions<TaskGroupResultType.REDUCE, F, T, R>>;
+                        if (reducer && typeof reducer !== 'function') {
+                            const [r, ...args] = reducer;
+                            this.#reducer = r(ctx, ...args);
+                        } if (reducer) {
+                            const r = reducer as ReducerFn<T, R,[]>;
+                            this.#reducer = r(ctx)
+                        } else {
+                            throw new Error(`"reducer" is a required parameter for TaskGroupResultType.REDUCE`);
+                        }
                     }
+                    if (this.#pool) {
+                        this.onStart(() => this.#forall(t => this.#pool?.add(t)))
+                    }
+                    this.#run(fulfilled as (v: T | T[] | PromiseSettledResult<T>[] | R) => void, rejected)
+                })),
+                {
+                    ...others,
+                    cancel: true
                 }
-                if (this.#pool) {
-                    this.onStart(() => this.#forall(t => this.#pool?.add(t)))
-                }
-                switch (this.#result_type) {
-                    case TaskGroupResultType.FIRST:
-                        this.onStart(() =>
-                            Promise.race(this.#normal_tasks).then(fulfilled as (v: any) => void, rejected));
-                        break;
-                    case TaskGroupResultType.ALL:
-                        this.onStart(() =>
-                            Promise.all(this.#normal_tasks).then(fulfilled as (v: any) => void, rejected));
-                        break;
-                    case TaskGroupResultType.ANY:
-                        this.onStart(() =>
-                            Promise.any(this.#normal_tasks).then(fulfilled as (v: any) => void, rejected));
-                        break;
-                    case TaskGroupResultType.ALL_SETTLED:
-                        this.onStart(() =>
-                            Promise.allSettled(this.#normal_tasks).then(fulfilled as (v: any) => void, rejected));
-                        break;
-                    case TaskGroupResultType.REDUCE:
-                        let count = 0;
-                        let idx = 0;
-                        this.#normal_tasks.forEach(t => {
-                            const tidx = idx++;
-                            const acceptor = (v: T) => {
-                                try {
-                                    this.#reducer?.next([v, tidx]);
-                                } catch (e) {
-                                    rejected(e);
-                                }
-                            };
-                            const rejector = (e: any) => {
-                                try {
-                                    this.#reducer?.throw(e);
-                                } catch (e) {
-                                    rejected(e);
-                                }
-                            };
-                            t.then(acceptor, rejector);
-                        });
-                        break;
-                    default:
-                        throw new Error(`Unknown result type ${this.#result_type}`);
-                }
-            },
-            {
-                ...others,
-                global: true,
-                // Workaround for lack of protected fields in Jaavvascript
-                _contextCallback: (context: TaskContext<R>) => {
-                    this.#context = context;
-                }
-            }
             );
         this.#result_type = (resultType  as RT ?? Throw(new Error(`"resultType is a required parameter`)));
         this.#name = name ?? `TaskGroup-${TaskGroup.#counter++}`;
-        this.#timeout = timeout;
         let canceller = () =>
             this.#daemon_tasks.forEach(t => t.cancel());
         this.when(canceller, canceller)

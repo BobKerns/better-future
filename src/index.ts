@@ -22,7 +22,8 @@ export type {
     Task, PromiseLikeTask, SimpleTask,
     OnFinally, OnFulfilled, OnRejected, OnStart, FailCallback,
     UnixTime, Millis, TaskGroupOptions,  FutureOptions,
-    RejectedState, TerminalState
+    RejectedState, TerminalState, TaskGroupResult,
+    Reducer, ReducerFn, ReducerGroup
 } from './types'
 
 export {TaskGroupResultType, TaskType} from './enums';

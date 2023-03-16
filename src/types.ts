@@ -7,7 +7,7 @@ import type {Future} from './future';
 import type { TaskContext } from './task-context';
 import { TaskGroupResultType } from './enums';
 import type { TaskPool } from './task-pool';
-import { TaskGroup } from './task-group';
+import type { TaskGroup } from './task-group';
 import { State } from './state';
 
 /**
@@ -109,6 +109,27 @@ export type FailCallback<E extends Error> = (e: E | PromiseLike<E>) => void;
  */
 export type StartCallback = (tme: UnixTime) => void;
 
+/**
+ * The type a task will return.
+ *
+ * @typeParam R The type of the value returned to the task
+ *              from the subtasks, prior to aggregation.
+ * @typeParam RR The type of the value returned to the task
+ *               by any reduceer, or `never`.
+ * @typeParam RT The {@link TaskGroupResultType:type} of the task group,
+ *               specfying ow the results are aggregated.
+ */
+export type TaskGroupResult<RT, R, RR = never> =
+    RT extends TaskGroupResultType.REDUCE
+    ? RR
+    : RT extends TaskGroupResultType.FIRST | TaskGroupResultType.ANY
+    ? R
+    : RT extends TaskGroupResultType.ALL
+    ? R[]
+    : RT extends TaskGroupResultType.ALL_SETTLED
+    ? PromiseSettledResult<R>[]
+    : never;
+
 type NonReduceOptions = Exclude<TaskGroupResultType, TaskGroupResultType.REDUCE>;
 
 interface BaseTypeGroupOptions<RT extends TaskGroupResultType> extends FutureOptions {
@@ -117,12 +138,6 @@ interface BaseTypeGroupOptions<RT extends TaskGroupResultType> extends FutureOpt
      * Name for the task group.
      */
     name?: string;
-
-    /**
-     * If supplied,the task group will time out if it does not complete within this
-     * duration (in milliseconds).
-     */
-    timeout?: number;
 
     /**
      * If supplied, the task group and all of its member tasks will be added to this pool.
@@ -176,12 +191,6 @@ export interface FutureOptions {
      * Message to include in the {@link TimeoutException}.
      */
     timeout_msg?: string;
-
-    /**
-     * Callback for subclasses to recieve {@link TaskContext} provided to callbacks.
-     * @internal
-     */
-    _contextCallback?: (ctx: TaskContext<any>) => void;
 }
 
 /**
@@ -236,10 +245,10 @@ export type  Reducer<T, R> = Generator<undefined, R, [T, number]>;
 /**
  * A function that produces a {@link Reducer} for a {@link ReducerGroup}.
  */
-export type ReducerFn<A, T, R> = (ctx: TaskContext<R>, ...args: A[]) => Reducer<T, R>;
+export type ReducerFn<T, R, ARGS extends any[]> = (ctx: TaskContext<R>, ...args: ARGS) => Reducer<T, R>;
 
 /**
  * The {@link TaskGroupOptions#reducer} parameter can be a {@link ReducerFn} or an array
  * of the form `[ReducerFn, ...args]`.
  */
-export type ReducerSpec<T, R, A extends any[] = any[]> = ReducerFn<T, R, []> | [ReducerFn<A, T, R>, ...A]
+export type ReducerSpec<T, R, ARGS extends any[] = []> = ReducerFn<T, R, []> | [ReducerFn<T, R, ARGS>, ...ARGS]
