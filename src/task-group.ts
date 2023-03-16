@@ -9,6 +9,7 @@ import { TaskGroupResultType, TaskType } from './enums';
 import type { TaskGroupOptions, FutureOptions, Task, ReducerFn, Reducer, ReducerGroup } from './types';
 import { CancelledException, TimeoutException, Throw } from './utils';
 import { TaskPool } from './task-pool';
+import { TaskContext } from './task-context';
 
 const todo = () => { throw new Error('TODO'); };
 
@@ -57,7 +58,7 @@ type TaskGroupResult<RT extends TaskGroupResultType, T> =
  *   is fulfilled, the corresponding settlement object will have a `status` of `fulfilled`,
  *   and a `value` property containing the fulfillment value.
  **/
-export class TaskGroup<RT extends TaskGroupResultType, T, R = T> extends Future<TaskGroupResult<RT, R>> {
+export class TaskGroup<RT extends TaskGroupResultType, F, T = F, R = T> extends Future<TaskGroupResult<RT, R>> {
     #result_type: RT;
 
     #name: string;
@@ -75,7 +76,19 @@ export class TaskGroup<RT extends TaskGroupResultType, T, R = T> extends Future<
 
     #daemon_tasks = new Set<Future<any>>();
 
+    // Default handling of normal tasks. This is overridden if th result type is REDUCED.
+    #add_normal_task: (task: Future<T>) => void = (task: Future<T>) => {
+        if (this.state !== State.PENDING) {
+            throw new Error(`Cannot add normal tasks to group ${this.#name} after it has been started.`);
+        }
+        this.#normal_tasks.add(task);
+    }
+
+    #filter?: (v: F) => T;
+
     #reducer?: Reducer<T, R>;
+
+    #context?: TaskContext<R>;
 
     static #counter: number = 0;
 
@@ -107,7 +120,7 @@ export class TaskGroup<RT extends TaskGroupResultType, T, R = T> extends Future<
     *
     * @param options a {@link TaskGroupOptions} object.
     */
-    constructor({ resultType, name, timeout, pool, ...others }: TaskGroupOptions<T, R, RT>) {
+    constructor({ resultType, name, timeout, pool, ...others }: TaskGroupOptions<RT, F, T, R>) {
         super(
             (fulfilled: TaskGroupFulfilled<RT, R>,
                 rejected: (e?: any) => void) => {
@@ -117,10 +130,10 @@ export class TaskGroup<RT extends TaskGroupResultType, T, R = T> extends Future<
                 this.onCancel(e => this.#forall(t => t.cancel(e as CancelledException<unknown>)));
                 this.onTimeout(e => this.#forall(t => t.forceTimeout(e as TimeoutException<unknown>)));
                 if (resultType === TaskGroupResultType.REDUCE) {
-                    const {reducer} = others as Partial<TaskGroupOptions<T, R, TaskGroupResultType.REDUCE>>;
+                    const {reducer} = others as Partial<TaskGroupOptions<TaskGroupResultType.REDUCE, F, T, R>>;
                     //const {reducer} = o;
                     if (reducer && typeof reducer !== 'function') {
-                        this.#reducer = reducer[0](this as ReducerGroup<T, R>, ...reducer.slice(1));
+                        this.#reducer = reducer[0](this.#context!, ...reducer.slice(1));
                     }
                 }
                 if (this.#pool) {
@@ -168,7 +181,16 @@ export class TaskGroup<RT extends TaskGroupResultType, T, R = T> extends Future<
                     default:
                         throw new Error(`Unknown result type ${this.#result_type}`);
                 }
-            });
+            },
+            {
+                ...others,
+                global: true,
+                // Workaround for lack of protected fields in Jaavvascript
+                _contextCallback: (context: TaskContext<R>) => {
+                    this.#context = context;
+                }
+            }
+            );
         this.#result_type = (resultType  as RT ?? Throw(new Error(`"resultType is a required parameter`)));
         this.#name = name ?? `TaskGroup-${TaskGroup.#counter++}`;
         this.#timeout = timeout;

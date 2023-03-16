@@ -111,7 +111,7 @@ export type StartCallback = (tme: UnixTime) => void;
 
 type NonReduceOptions = Exclude<TaskGroupResultType, TaskGroupResultType.REDUCE>;
 
-interface BaseTypeGroupOptions<RT extends TaskGroupResultType> {
+interface BaseTypeGroupOptions<RT extends TaskGroupResultType> extends FutureOptions {
     resultType: RT;
     /**
      * Name for the task group.
@@ -131,29 +131,22 @@ interface BaseTypeGroupOptions<RT extends TaskGroupResultType> {
 }
 
 
-type ReduceTaskGroupOptions<R, T> = {
+type ReduceTaskGroupOptions<T, R> = {
     resultType: TaskGroupResultType.REDUCE;
-    reducer: ReducerSpec<R,T>;
+    reducer: ReducerSpec<T, R>;
 };
 
 /**
  * Options for a {@link TaskGroup}. A {@link TaskGroupResultType.REDUCE} task group
  * has additional options.
  */
-export type TaskGroupOptions<R, T, RT extends TaskGroupResultType> =
+export type TaskGroupOptions<RT extends TaskGroupResultType, F, T = F, R = T> =
     RT extends TaskGroupResultType.REDUCE
-    ? BaseTypeGroupOptions<RT> & ReduceTaskGroupOptions<R, T>
+    ? BaseTypeGroupOptions<RT> & ReduceTaskGroupOptions<T, R>
     : RT extends NonReduceOptions
     ? BaseTypeGroupOptions<RT>
     : never;
 
-const foo: TaskGroupOptions<number, number, TaskGroupResultType> = {
-    resultType: TaskGroupResultType.REDUCE,
-    reducer: null as unknown as ReducerSpec<number, number>,
-    name: 'cat'
-};
-
-console.log(foo);
 /**
  * Options to the {@link Future} constructor.
  */
@@ -183,6 +176,12 @@ export interface FutureOptions {
      * Message to include in the {@link TimeoutException}.
      */
     timeout_msg?: string;
+
+    /**
+     * Callback for subclasses to recieve {@link TaskContext} provided to callbacks.
+     * @internal
+     */
+    _contextCallback?: (ctx: TaskContext<any>) => void;
 }
 
 /**
@@ -208,7 +207,7 @@ export type TerminalState = State.FULFILLED | RejectedState;
  * will apply a {@link Reducer} function to aggregate the results.
  * @typeparam T The type of the value returned by the tasks.
  */
-export type ReducerGroup<T, R> = TaskGroup<TaskGroupResultType.REDUCE, T, R>;
+export type ReducerGroup<F, T = F, R = T> = TaskGroup<TaskGroupResultType.REDUCE, F, T, R>;
 
 /**
  *
@@ -237,10 +236,10 @@ export type  Reducer<T, R> = Generator<undefined, R, [T, number]>;
 /**
  * A function that produces a {@link Reducer} for a {@link ReducerGroup}.
  */
-export type ReducerFn<A, T, R> = (group: ReducerGroup<T, R>, ...args: A[]) => Reducer<T, R>;
+export type ReducerFn<A, T, R> = (ctx: TaskContext<R>, ...args: A[]) => Reducer<T, R>;
 
 /**
  * The {@link TaskGroupOptions#reducer} parameter can be a {@link ReducerFn} or an array
  * of the form `[ReducerFn, ...args]`.
  */
-export type ReducerSpec<T, R, A extends any[] = any[]> = ReducerFn<[], T, R> | [ReducerFn<A, T, R>, ...A]
+export type ReducerSpec<T, R, A extends any[] = any[]> = ReducerFn<T, R, []> | [ReducerFn<A, T, R>, ...A]

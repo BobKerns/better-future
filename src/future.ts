@@ -170,7 +170,7 @@ export class Future<T> {
     constructor(task: Task<T>);
     constructor(task: Task<T>|DirectTask<T>, options: FutureOptions);
     constructor(task: Task<T> | DirectTask<T>, options?: FutureOptions)  {
-        // Not in the signature—an internal-only usage.
+        // Not in the function signature—an internal-only usage.
         if (task instanceof Future) {
             const o = task;
             this.#s = o.#s;
@@ -227,6 +227,9 @@ export class Future<T> {
            if (options?.cancel || options?.timeoutFromNow || options?.timeoutFromStart) {
                 this.#promise = Promise.race([this.#promise, this.#s.auxPromise]);
            }
+           // Supply subclasses with acess to the context. Workaround for lack of
+           // protected fields
+           options?._contextCallback?.(this.#s.context);
         }
     }
 
