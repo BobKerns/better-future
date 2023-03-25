@@ -3,7 +3,7 @@
  * Copyright 2023 by Bob Kerns. Licensed under MIT license.
  */
 
-import { MinHeap } from "../clock/heap";
+import { MinHeap } from "./clock/heap";
 
 const permutations = <T>(xs: T[]): T[][] => {
     const ret: T[][] = [];
