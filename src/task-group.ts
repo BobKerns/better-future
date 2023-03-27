@@ -7,9 +7,9 @@ import {Future} from './future';
 import { State } from './state';
 import { TaskGroupResultType, TaskType } from './enums';
 import type {
-    TaskGroupOptions, FutureOptions, Task,
+    TaskGroupOptions, BaseTypeGroupOptions, FutureOptions, Task,
     ReducerFn, Reducer, TaskGroupResult,
-    
+
 } from './types';
 import { CancelledException, TimeoutException, Throw, withThis } from './utils';
 import { TaskPool } from './task-pool';
@@ -17,12 +17,9 @@ import { TaskContext } from './task-context';
 
 const todo = () => { throw new Error('TODO'); };
 
-type TaskGroupFulfilled<RT extends TaskGroupResultType, R>
-    = (v: TaskGroupResult<RT, R> | PromiseLike<TaskGroupResult<RT, R>>) => void;
-
 /**
  *
- * A {@link TaskGroup} is a collection of {@link Task]s, wrapped in {@link Future}
+ * A {@link TaskGroup} is a collection of {@link Task}s, wrapped in {@link Future}
  * that can be run in parallel and be mnaged as a group.
  * Cancelling the group will cancel all of the tasks in the group
  * that have not yet completed. A timeout can be specified for the group, in which case
@@ -86,8 +83,6 @@ export class TaskGroup<
     #rejected?: (e?: any) => void;
 
     #timeout?: number;
-
-    #pool?: TaskPool;
 
     #normal_tasks = new Set<Future<T>>();
 
@@ -211,15 +206,17 @@ export class TaskGroup<
     * * {@link BaseTaskGroupOptions#pool} - The {@link TaskPool} to use for running the tasks in the group. If not specified,,
     *   no pool will be used.
     * * {@link BaseTaskGroupOptions#reducer} - A function that will be called to reduce/aggregate the values
+    *   Required if `resultType` is `REDUCE`.
     *
     * @param options a {@link TaskGroupOptions} object.
     */
-    constructor({ resultType, name, pool, ...others }: TaskGroupOptions<RT, F, T, R>) {
-        super(  
+    constructor({ resultType, name, pool, filter, ...others }: TaskGroupOptions<RT, F, T, R>) {
+        super(
             withThis((ctx: TaskContext<R>) =>
                 new Promise<R>((fulfilled, rejected) => {
                     this.#rejected = rejected;
                     this.pool = pool;
+                    this.#filter = filter;
                     this.onCancel(e => this.#forall(t => t.cancel(e as CancelledException<unknown>)));
                     this.onTimeout(e => this.#forall(t => t.forceTimeout(e as TimeoutException<unknown>)));
 
@@ -241,8 +238,8 @@ export class TaskGroup<
                             throw new Error(`"reducer" is a required parameter for TaskGroupResultType.REDUCE`);
                         }
                     }
-                    if (this.#pool) {
-                        this.onStart(() => this.#forall(t => this.#pool?.add(t)))
+                    if (this.pool) {
+                        this.onStart(() => this.#forall(t => this.pool?.add(t)))
                     }
                     this.#run(fulfilled as (v: T | T[] | PromiseSettledResult<T>[] | R) => void, rejected)
                 })),
@@ -263,7 +260,7 @@ export class TaskGroup<
      * @param options The {@link FutureOptions} for the created {@link Future}.
      * @returns The {@link TaskGroup} for chaining.
      */
-    add(task: Task<T>, type: TaskType.NORMAL, options?: FutureOptions): this;
+    add(task: Task<F>, type: TaskType.NORMAL, options?: FutureOptions): this;
     /**
      * Add a task, creating a future for it.
      * @param task
@@ -278,7 +275,7 @@ export class TaskGroup<
      * @param options The {@link FutureOptions} for the created {@link Future}.
      * @returns The {@link TaskGroup} for chaining.
      */
-    add(task: Task<T>, options?: FutureOptions): this;
+    add(task: Task<F>, options?: FutureOptions): this;
     /**
      * Add a background or daemon task.
      *
@@ -296,7 +293,7 @@ export class TaskGroup<
      * @param type The tpe of task to add. Defaults to {@link TaskType.NORMAL}.
      * @Breeturns The {@link TaskGroup} for chaining.
      */
-    add(task: PromiseLike<TaskGroupResult<RT, T>>, type?: TaskType.NORMAL): this;
+    add(task: PromiseLike<TaskGroupResult<RT, F>>, type?: TaskType.NORMAL): this;
     /**
      * Implementation of {@link TaskGroup.add}.
      *
@@ -305,15 +302,20 @@ export class TaskGroup<
      * @param options
      * @returns
      */
-    add<X>(task: PromiseLike<any>|Task<T|X>, type: TaskType|FutureOptions = TaskType.NORMAL, options?: FutureOptions): this {
+    add<X>(task: PromiseLike<F|X>|Task<F|X>, type: TaskType|FutureOptions = TaskType.NORMAL, options?: FutureOptions): this {
+        let task2: Future<F>;
         if (typeof task === 'function') {
             if (typeof type === 'object') {
                 options = type;
 
             }
-            task = new Future(task, options!);
+            task2 = new Future<F>(task as Task<F>, options!);
+        } else {
+            task2 = Future.resolve<F>(task as PromiseLike<F>);
         }
-        const f = Future.resolve(task);
+        const f: Future<T> = this.#filter
+            ? Future.resolve(task2).then(this.#filter!)
+            : Future.resolve(task2) as unknown as Future<T>; // F = T if no filter.
         switch (type) {
             case TaskType.BACKGROUND:
                 this.#background_tasks.add(f);
@@ -332,8 +334,8 @@ export class TaskGroup<
             case State.PAUSED:
             case State.DELAY:
                 // not terminating yet. Just add the task.
-                if (this.#pool) {
-                    this.#pool.add(f);
+                if (this.pool) {
+                    this.pool.add(f);
                 }
                 break;
             case State.TIMEOUT:
