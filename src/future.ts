@@ -269,7 +269,7 @@ export class Future<T> {
      * @param onRejected
      * @returns the new {@link Future} instance.
      */
-    then<R,E>(onFulfilled: OnFulfilled<T,R>, onRejected: OnRejected<E>): Future<R|E> {
+    then<R,E>(onFulfilled: OnFulfilled<T,R>, onRejected?: OnRejected<E>): Future<R|E> {
         this.#s.task?.call(this.#s.context, this.#s.context);
         const next = new Future<R|E>(this as any as Task<R|E>);
         next.#promise = this.#promise.then(onFulfilled, onRejected);
@@ -444,7 +444,7 @@ export class Future<T> {
      * @param v A value or a Promise-like container for a value.
      * @returns a {@link Future} pre-resolved to that value.
      */
-    static resolve<T>(v: T) : Future<T> {
+    static resolve<T>(v: T | PromiseLike<T>) : Future<T> {
         return new Future<T>(() => Promise.resolve(v)).start();
     }
 
