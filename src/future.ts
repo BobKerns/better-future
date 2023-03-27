@@ -131,9 +131,9 @@ export class Future<T> {
      *   then received by the caller of the {@link Future} instance via the {@link #then}
      *   or {@link #catch} methods. The task may also return a `Promise`,
      *   whose value will be used in the same way.
-     * * a function of 2 arguments, the first of which is a {@link ResolveCallback} and the second of which is a
-     *   {@link FailCallback}. The task may call the {@link ResolveCallback} to
-     *   resolve the {@link Future} with a value, or the {@link FailCallback} to reject it
+     * * a function of 2 arguments, the first of which is a `ResolveCallback` and the second of which is a
+     *   `FailCallback`. The task may call the `ResolveCallback` to
+     *   resolve the {@link Future} with a value, or the `FailCallback` to reject it
      *   with an exception. The task may also return a `Promise`, whose value will
      *   be used in the same way.
      *

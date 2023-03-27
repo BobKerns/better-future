@@ -10,7 +10,7 @@ import {State} from "./state";
 
 /**
  * A FutureException is an exception that is thrown when a {@link Future:type} is cancelled or times out.
- * 
+ *
  * @typeParam T The type of the result of the {@link Future:type}.
  */
 export class FutureException<T> extends Error {
@@ -39,7 +39,7 @@ export class FutureException<T> extends Error {
 /**
  * A {@link FinishedException} is an exception that is thrown when a {@link Future} is finished
  * and a cancellation-aware task should have any remaining activity aborted.
- * 
+ *
  * @typeParam T The type of the result of the {@link Future:type}.
  */
 export class FinishedException<T> extends FutureException<T> {
@@ -50,7 +50,7 @@ export class FinishedException<T> extends FutureException<T> {
 
 /**
  * A {@link TimeoutException} is an exception that is thrown when a {@link Future} times out.
- * 
+ *
  * @typeParam T The type of the result of the {@link Future:type}.
  */
 export class TimeoutException<T> extends FutureException<T> {
@@ -61,7 +61,7 @@ export class TimeoutException<T> extends FutureException<T> {
 
 /**
  * A {@link CancelledException} is an exception that is thrown when a {@link Future} is cancelled.
- * 
+ *
  * @typeParam T The type of the result of the {@link Future:type}.
  */
 export class CancelledException<T> extends FutureException<T> {

@@ -22,10 +22,18 @@ export class TaskPool {
     }
     static #counter = 0;
     /**
-     * 
+     * Tasks waiting to be run.
      */
     #queue: Set<Future<any>> = new Set();
+
+    /**
+     * Tasks currently running.
+     */
     #running: Set<Future<any>> = new Set();
+
+    /**
+     * If set, a timeout in milliseconds for each task to complete.
+     */
     #timeout?: number;
     constructor({size = 1, timeout, name}: {size: number, timeout?: number, name?: number}) {
         this.#size = size
@@ -54,7 +62,7 @@ export class TaskPool {
 
     /**
      * Add a task to the pool.
-     * @param task The task (a {@link Future}}
+     * @param task The task (a {@link Future})
      */
     add<T>(task: Future<T>): Future<T> ;
     /**

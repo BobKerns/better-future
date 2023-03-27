@@ -12,8 +12,7 @@ import { State } from './state';
 
 /**
  * Signature for a sipmle task, which is a function of no arguments that returs a value or a promise.
- * The context is passed as `this`, to avoid ambiguity with {@link PromiseLikeTask}s.
- * @internal
+ * The context is passed as `this`, to avoid ambiguity with {@link PromiseLikeTask:type}s.
  */
 export type SimpleTask<T> =
     ((this: TaskContext<T>) => T | PromiseLike<T>)
@@ -22,7 +21,7 @@ export type SimpleTask<T> =
 /**
  * A task that accepts the {@link TaskContext:type} as an argument.  This signature can be used if the
  * _options_ argument to {@link Future:type} is supplied.
- * @internal
+
  */
 export type DirectTask<T> =
     ((ctx: TaskContext<T>) => T);
@@ -41,16 +40,15 @@ export type PromiseLikeTask<T> =
 
 /**
  * A task to be performed in the future, compatible with `Promise`.
- * @internal
  */
 export type CompatibleTask<T> = SimpleTask<T> | PromiseLikeTask<T>;
 
 /**
  * A task to be performed in the future.
- *  - {@link SimpleTask}s are the most common, and take no arguments (but may be
+ *  - {@link SimpleTask:type}s are the most common, and take no arguments (but may be
  *    bound to a {@link TaskContext:type})
- *  - {@link DirectTask}s are used when the {@link TaskContext:type} is needed.
- *. - {@link PromiseLikeTask}s are used for compatibility with the `Promise` constructor.
+ *  - {@link DirectTask:type}s are used when the {@link TaskContext:type} is needed.
+ *. - {@link PromiseLikeTask:type}s are used for compatibility with the `Promise` constructor.
  */
 export type Task<T> = CompatibleTask<T> | DirectTask<T>;
 
@@ -116,7 +114,7 @@ export type StartCallback = (tme: UnixTime) => void;
  *              from the subtasks, prior to aggregation.
  * @typeParam RR The type of the value returned to the task
  *               by any reduceer, or `never`.
- * @typeParam RT The {@link TaskGroupResultType:type} of the task group,
+ * @typeParam RT The {@link TaskGroupResultType} of the task group,
  *               specfying ow the results are aggregated.
  */
 export type TaskGroupResult<RT, R, RR = never> =
@@ -132,6 +130,9 @@ export type TaskGroupResult<RT, R, RR = never> =
 
 type NonReduceOptions = Exclude<TaskGroupResultType, TaskGroupResultType.REDUCE>;
 
+/**
+ * Options common to all {@link TaskGroup:type} types.
+ */
 interface BaseTypeGroupOptions<RT extends TaskGroupResultType> extends FutureOptions {
     resultType: RT;
     /**
@@ -143,11 +144,27 @@ interface BaseTypeGroupOptions<RT extends TaskGroupResultType> extends FutureOpt
      * If supplied, the task group and all of its member tasks will be added to this pool.
      */
     pool?: TaskPool;
+
+    /**
+     * If supplied, the results of the task will be transformed by this function. This can result in
+     * memory savings if the results are large, and the transformed results are smaller. Large results
+     * held waiting for the other tasks in the group to complete can cause memory pressure.
+     * @param v The value to be transformed.
+     * @returns The transformed value.
+     */
 }
 
 
 type ReduceTaskGroupOptions<T, R> = {
+    /**
+     * The {@link BaseTaskGroupOptions:resultType} for a {@link TaskGroupResultType.REDUCE} task group is
+     * alway {@link TaskGroupResultType.REDUCE}.
+     */
     resultType: TaskGroupResultType.REDUCE;
+
+    /**
+     * The function to reduce the results of the subtasks, combining them into a single value.
+     */
     reducer: ReducerSpec<T, R>;
 };
 

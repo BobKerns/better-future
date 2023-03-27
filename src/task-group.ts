@@ -203,13 +203,14 @@ export class TaskGroup<
     /**
     * Construct a new {@link TaskGroup} with the specified options.
     *
-    * * {@link TaskGroupOptions#resultType} - The type of result to return.
-    *   One of `FIRST`, `ALL`, `ANY`, or `ALL_SETTLED`.
-    * * {@link TaskGroupOptions#name} - The name of the group. Defaults to a generated unique name.
-    * * {@link TaskGroupOptions#timeout} - The number of milliseconds to wait before timing
+    * * {@link BaseTaskGroupOptions.resultType} - The type of result to return.
+    *   One of `FIRST`, `ALL`, `ANY`, `ALL_SETTLED` or `REDUCE`.
+    * * {@link BaseTaskGroupOptions#name} - The name of the group. Defaults to a generated unique name.
+    * * {@link BaseTaskGroupOptions#timeout} - The number of milliseconds to wait before timing
     *   out the group. `undefined` means no timeout.
-    * * {@link TaskGroupOpitions#pool} - The {@link TaskPool} to use for running the tasks in the group. If not specified,,
+    * * {@link BaseTaskGroupOptions#pool} - The {@link TaskPool} to use for running the tasks in the group. If not specified,,
     *   no pool will be used.
+    * * {@link BaseTaskGroupOptions#reducer} - A function that will be called to reduce/aggregate the values
     *
     * @param options a {@link TaskGroupOptions} object.
     */
@@ -258,7 +259,7 @@ export class TaskGroup<
     /**
      * Add a task, creating a future for it.
      * @param task
-     * @param type The type of task (defaults to {@link TaskType.NORMAL}}})
+     * @param type The type of task (defaults to {@link TaskType.NORMAL})
      * @param options The {@link FutureOptions} for the created {@link Future}.
      * @returns The {@link TaskGroup} for chaining.
      */
@@ -266,7 +267,7 @@ export class TaskGroup<
     /**
      * Add a task, creating a future for it.
      * @param task
-     * @param type The type of task (defaults to {@link TaskType.NORMAL}}})
+     * @param type The type of task (defaults to {@link TaskType.NORMAL})
      * @param options The {@link FutureOptions} for the created {@link Future}.
      * @returns The {@link TaskGroup} for chaining.
      */
@@ -281,7 +282,7 @@ export class TaskGroup<
     /**
      * Add a background or daemon task.
      *
-     * @param task The {limk Future} to add to the group. Any `PromiseLike` can be used with
+     * @param task The {@link Future} to add to the group. Any `PromiseLike` can be used with
      *             limited functionality.
      * @param type The tpe of task to add. Defaults to {@link TaskType.NORMAL}.
      * @returns The {@link TaskGroup} for chaining.
@@ -369,6 +370,7 @@ export class TaskGroup<
 
     /**
      * Addng a {@link TaskGroup} to a {@link TaskPool} will add all the tasks in the group to the pool.
+     * @param pool The {@link TaskPool} to add the group to.
      */
     set pool(pool: TaskPool|undefined) {
         super.pool = pool;

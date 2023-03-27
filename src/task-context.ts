@@ -16,9 +16,10 @@ export class TaskContext<T> {
     #s: FutureState<T>;
 
     /**
-     * 
-     * @param future 
-     * @param s 
+     *
+     * @param future
+     * @param s
+     * @internal
      */
     constructor(future: Future<T>, s: FutureState<T>) {
         this.#future = future;
@@ -35,7 +36,7 @@ export class TaskContext<T> {
 
     /**
      * Pause the task.
-     * 
+     *
      * A task might pause itself in response to a user request,
      * or as part of a retry loop after setting a timer..
     */
@@ -46,7 +47,7 @@ export class TaskContext<T> {
 
     /**
      * Resume the task.
-     * 
+     *
      * A task might resume itself in response to a user request,
      * or as part of a retry loop after setting a timer.
      */
