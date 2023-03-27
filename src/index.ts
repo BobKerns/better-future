@@ -32,4 +32,6 @@ export {TaskGroup} from './task-group';
 
 export {TaskContext} from './task-context';
 
+export {TaskPool} from './task-pool';
+
 export { arithmetic_mean, Statistics, statistics } from './reducers';
