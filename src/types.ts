@@ -128,12 +128,15 @@ export type TaskGroupResult<RT, R, RR = never> =
     ? PromiseSettledResult<R>[]
     : never;
 
+
+
+
 type NonReduceOptions = Exclude<TaskGroupResultType, TaskGroupResultType.REDUCE>;
 
 /**
  * Options common to all {@link TaskGroup:type} types.
  */
-interface BaseTypeGroupOptions<RT extends TaskGroupResultType> extends FutureOptions {
+export interface BaseTypeGroupOptions<RT extends TaskGroupResultType, F, T> extends FutureOptions {
     resultType: RT;
     /**
      * Name for the task group.
@@ -152,10 +155,13 @@ interface BaseTypeGroupOptions<RT extends TaskGroupResultType> extends FutureOpt
      * @param v The value to be transformed.
      * @returns The transformed value.
      */
+    filter? : (v: F) => T;
 }
 
-
-type ReduceTaskGroupOptions<T, R> = {
+/**
+ * Additional options for a {@link TaskGroup} that is a {@link TaskGroupResultType.REDUCE} task group.
+ */
+export interface ReduceTaskGroupOptions<F, T, R> extends BaseTypeGroupOptions<TaskGroupResultType.REDUCE, F, T>{
     /**
      * The {@link BaseTaskGroupOptions:resultType} for a {@link TaskGroupResultType.REDUCE} task group is
      * alway {@link TaskGroupResultType.REDUCE}.
@@ -174,9 +180,9 @@ type ReduceTaskGroupOptions<T, R> = {
  */
 export type TaskGroupOptions<RT extends TaskGroupResultType, F, T = F, R = T> =
     RT extends TaskGroupResultType.REDUCE
-    ? BaseTypeGroupOptions<RT> & ReduceTaskGroupOptions<T, R>
+    ? ReduceTaskGroupOptions<F, T, R>
     : RT extends NonReduceOptions
-    ? BaseTypeGroupOptions<RT>
+    ? BaseTypeGroupOptions<RT, F, T>
     : never;
 
 /**
@@ -219,7 +225,7 @@ export type ExternalizedPromise<T> = Promise<T> & {
 };
 
 /**
- * A terminal state other than {State#FULFILLED}.
+ * A terminal state other than {@link State#FULFILLED}.
  */
 export type RejectedState = State.REJECTED | State.CANCELLED | State.TIMEOUT;
 /**
