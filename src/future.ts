@@ -442,10 +442,13 @@ export class Future<T> {
      * ![State diagram for Future.resolve](../../images/resolve.svg)
      *
      * @param v A value or a Promise-like container for a value.
-     * @returns a {@link Future} pre-resolved to that value.
+     * @returns a {@link Future} that resolves to that value.
      */
     static resolve<T>(v: T | PromiseLike<T>) : Future<T> {
-        return new Future<T>(() => Promise.resolve(v)).start();
+        if (v instanceof Future) {
+            return v;
+        }
+        return new Future<T>(() => Promise.resolve(v));
     }
 
     /**
