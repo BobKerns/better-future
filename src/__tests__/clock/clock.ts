@@ -136,26 +136,39 @@ export class Gate {
     }
 }
 
-export class Checkpoint implements Resolvable<void> {
+export class Checkpoint implements Partial<Resolvable<void>> {
     readonly #task: string;
-    readonly name: string;
-    readonly gate: Gate;
+    readonly #name: string;
+
+    get name() {
+        return this.#name;
+    }
+    readonly #gate: Gate;
+
+    /**
+     * The {@link Gate} for this {@link Checkpoint}, on which code under test will wait.
+     */
+    get gate() {
+        return this.#gate;
+    }
+
     readonly #check?: () => void;
     readonly #next?: Checkpoint;
 
-    readonly resolve: () => void;
-    readonly reject: (e: Error) => void;
+    readonly resolve?: (v: void | PromiseLike<void>) => void;
+    readonly reject?: (e: Error) => void;
 
     constructor(task: string, gate: string, next?: Checkpoint, check?: () => void) {
         this.#task = task;
-        this.gate = new Gate(task, gate, this, mk_promise());
+        this.#gate = new Gate(task, gate, this, mk_promise());
         this.#next = next;
         this.#check = check;
+        this.#name = `${task}.${gate}`;
     }
 
     async onArrival() {
         await this.#check?.();
-        this.#next?.resolve();
+        this.#next?.resolve?.();
     }
 }
 const END = Symbol('END');
@@ -163,23 +176,22 @@ const END = Symbol('END');
 type MkPromise<T> = Promise<T> & Resolvable<T>;
 
 interface Resolvable<T> {
-    resolve: (v: T) => void;
+    resolve: (v: T | PromiseLike<T>) => void;
     reject: (e: Error) => void;
 }
 
 const mk_promise = <A extends any[], R>(fn?: (...args: A) => R, ...args: A): MkPromise<R> => {
-    let resolve: () => void;
+    let resolve: (v : R | PromiseLike<R>) => void;
     let reject: (e: Error) => void;
-    const p = new Promise<void>((res, rej) => {
+    const p = new Promise<R>((res, rej) => {
         resolve = res;
         reject = rej;
         if (fn) {
             resolve = () => {
                 try {
-                    fn(...args);
-                    resolve();
+                    res(fn(...args));
                 } catch (e) {
-                    reject(e);
+                    reject(e as Error);
                 }
             };
         }
