@@ -131,7 +131,7 @@ export type TaskGroupResult<RT, R, RR = never> =
 
 
 
-type NonReduceOptions = Exclude<TaskGroupResultType, TaskGroupResultType.REDUCE>;
+export type NonReduceTaskTypes = Exclude<TaskGroupResultType, TaskGroupResultType.REDUCE>;
 
 /**
  * Options common to all {@link TaskGroup:type} types.
@@ -181,7 +181,7 @@ export interface ReduceTaskGroupOptions<F, T, R> extends BaseTypeGroupOptions<Ta
 export type TaskGroupOptions<RT extends TaskGroupResultType, F, T = F, R = T> =
     RT extends TaskGroupResultType.REDUCE
     ? ReduceTaskGroupOptions<F, T, R>
-    : RT extends NonReduceOptions
+    : RT extends NonReduceTaskTypes
     ? BaseTypeGroupOptions<RT, F, T>
     : never;
 

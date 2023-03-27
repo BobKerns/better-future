@@ -19,9 +19,11 @@ export {
 export {State} from "./state";
 
 export type {
-    Task, PromiseLikeTask, SimpleTask,
+    Task, PromiseLikeTask, SimpleTask, DirectTask,
     OnFinally, OnFulfilled, OnRejected, OnStart, FailCallback,
-    UnixTime, Millis, TaskGroupOptions,  FutureOptions,
+    UnixTime, Millis,
+    TaskGroupOptions, BaseTypeGroupOptions, ReduceTaskGroupOptions, FutureOptions,
+    NonReduceTaskTypes as NonReduceOptions,
     RejectedState, TerminalState, TaskGroupResult,
     Reducer, ReducerFn, ReducerGroup
 } from './types'
